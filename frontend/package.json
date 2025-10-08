@@ -11,9 +11,6 @@
         "preview": "vite preview"
     },
     "dependencies": {
-        "@burnt-labs/abstraxion": "^1.0.0-alpha.62",
-        "@burnt-labs/ui": "0.1.0-alpha.17",
-        "@cosmjs/stargate": "^0.36.0",
         "@hookform/resolvers": "^3.9.0",
         "@radix-ui/react-accordion": "^1.2.0",
         "@radix-ui/react-alert-dialog": "^1.1.1",
@@ -53,14 +50,11 @@
         "framer-motion": "^12.10.0",
         "input-otp": "^1.2.4",
         "lucide-react": "^0.462.0",
-        "next-themes": "^0.4.6",
         "react": "^18.3.1",
         "react-day-picker": "^8.10.1",
         "react-dom": "18.2.0",
         "react-hook-form": "^7.53.0",
         "react-resizable-panels": "^2.1.3",
-        "react-router-dom": "^6.26.2",
-        "recharts": "^2.12.7",
         "sonner": "^1.5.0",
         "styled-components": "^6.1.18",
         "tailwind-merge": "^2.5.2",
@@ -69,7 +63,6 @@
         "zod": "^3.23.8"
     },
     "devDependencies": {
-        "@cosmjs/cosmwasm-stargate": "^0.33.1",
         "@eslint/js": "^9.9.0",
         "@tailwindcss/typography": "^0.5.15",
         "@types/d3-array": "^3.2.1",
@@ -87,6 +80,7 @@
         "@types/prop-types": "^15.7.14",
         "@types/react": "^18.3.3",
         "@types/react-dom": "^18.3.0",
+        "@types/react-router-dom": "^5.3.3",
         "@types/styled-components": "^5.1.34",
         "@types/stylis": "^4.2.7",
         "@vitejs/plugin-react-swc": "^3.5.0",
@@ -97,6 +91,7 @@
         "globals": "^15.9.0",
         "lovable-tagger": "^1.1.7",
         "postcss": "^8.4.47",
+        "react-router-dom": "^6.30.1",
         "tailwindcss": "^3.4.11",
         "typescript": "^5.5.3",
         "typescript-eslint": "^8.0.1",

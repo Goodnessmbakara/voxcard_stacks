@@ -2,13 +2,12 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
-import Layout from '@/components/layout/Footer';
 
 const Home = () => {
   return (
     <>
       {/* Hero Section */}
-      <section className="py-20 md:py-32 bg-gradient-to-b from-vox-primary/5 to-white">
+      <section className="py-20 md:py-32 bg-gradient-to-b from-[#FC6432]/5 to-white">
         <div className="container">
           <div className="flex flex-col md:flex-row items-center">
             <div className="md:w-1/2 md:pr-12">
@@ -18,8 +17,8 @@ const Home = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
               >
-                <span className="gradient-text">Transparent</span> &<br />
-                <span className="gradient-text">Secure</span> Community<br />
+                <span className="bg-gradient-to-r from-black/50 to-[#FC6432] bg-clip-text text-transparent">Transparent</span> &<br />
+                <span className="bg-gradient-to-r from-black/50 to-[#FC6432] bg-clip-text text-transparent">Secure</span> Community<br />
                 Savings on XION
               </motion.h1>
               
@@ -40,13 +39,13 @@ const Home = () => {
                 transition={{ duration: 0.5, delay: 0.4 }}
               >
                 <Link to="/create-group">
-                  <Button size="lg" className="gradient-bg text-white w-full sm:w-auto hover:opacity-90 transition-opacity">
+                  <Button size="lg" className="bg-gradient-to-r from-[#FC6432] to-[#FF8A66] text-white w-full sm:w-auto hover:opacity-90 transition-opacity">
                     Start a Savings Circle
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
                 <Link to="/groups">
-                  <Button size="lg" variant="outline" className="border-vox-primary text-vox-primary hover:bg-vox-primary/10 w-full sm:w-auto">
+                  <Button size="lg" variant="outline" className="border-[#FC6432] text-[#FC6432] hover:bg-[#FC6432]/10 w-full sm:w-auto">
                     Browse Groups
                   </Button>
                 </Link>
@@ -60,8 +59,8 @@ const Home = () => {
               transition={{ duration: 0.6, delay: 0.3 }}
             >
               <div className="relative">
-                <div className="absolute -top-6 -left-6 w-64 h-64 bg-vox-primary/20 rounded-full blur-3xl"></div>
-                <div className="absolute -bottom-10 -right-10 w-72 h-72 bg-vox-secondary/20 rounded-full blur-3xl"></div>
+                <div className="absolute -top-6 -left-6 w-64 h-64 bg-[#FC6432]/20 rounded-full blur-3xl"></div>
+                <div className="absolute -bottom-10 -right-10 w-72 h-72 bg-[#FC6432]/20 rounded-full blur-3xl"></div>
                 
                 <div className="relative bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
                   <div className="flex items-center justify-between mb-6">
@@ -125,7 +124,7 @@ const Home = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="p-6 border border-gray-100 rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow">
-              <div className="w-12 h-12 rounded-full bg-vox-primary/10 flex items-center justify-center mb-4">
+              <div className="w-12 h-12 rounded-full bg-[#FC6432]/10 flex items-center justify-center mb-4">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="24"
@@ -133,7 +132,7 @@ const Home = () => {
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  className="text-vox-primary"
+                  className="text-[#FC6432]"
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -152,7 +151,7 @@ const Home = () => {
             </div>
             
             <div className="p-6 border border-gray-100 rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow">
-              <div className="w-12 h-12 rounded-full bg-vox-primary/10 flex items-center justify-center mb-4">
+              <div className="w-12 h-12 rounded-full bg-[#FC6432]/10 flex items-center justify-center mb-4">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="24"
@@ -160,7 +159,7 @@ const Home = () => {
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  className="text-vox-primary"
+                  className="text-[#FC6432]"
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -179,7 +178,7 @@ const Home = () => {
             </div>
             
             <div className="p-6 border border-gray-100 rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow">
-              <div className="w-12 h-12 rounded-full bg-vox-primary/10 flex items-center justify-center mb-4">
+              <div className="w-12 h-12 rounded-full bg-[#FC6432]/10 flex items-center justify-center mb-4">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="24"
@@ -187,7 +186,7 @@ const Home = () => {
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  className="text-vox-primary"
+                  className="text-[#FC6432]"
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -206,7 +205,7 @@ const Home = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-gradient-to-r from-vox-primary to-vox-secondary text-white">
+      <section className="py-16 bg-gradient-to-r to-[#FC6432] from-black/100 text-white">
         <div className="container">
           <div className="text-center max-w-3xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-heading font-bold mb-4">Ready to Start Saving Together?</h2>
@@ -215,7 +214,7 @@ const Home = () => {
             </p>
             <div className="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
               <Link to="/create-group">
-                <Button size="lg" variant="secondary" className="bg-white text-vox-primary hover:bg-gray-100 w-full sm:w-auto font-sans">
+                <Button size="lg" variant="secondary" className="bg-white text-[#FC6432] hover:bg-gray-100 w-full sm:w-auto font-sans">
                   Create a Group
                 </Button>
               </Link>

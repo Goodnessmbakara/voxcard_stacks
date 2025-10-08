@@ -21,7 +21,7 @@ const socialLinks = [
 
 const Footer = () => {
   return (
-	<footer className="relative bg-gradient-to-tr from-vox-primary to-vox-secondary text-white pt-10 pb-6 mt-8">
+	<footer className="relative bg-gradient-to-r to-[#FC6432] from-black/100 text-white pt-10 pb-6 mt-8">
 		<div className="container mx-auto px-4 flex flex-row item-start text-sm md:items-start justify-between gap-8">
 		<div className="flex flex-col items-center md:items-start mb-6 md:mb-0">
 			<motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} transition={{ duration: 0.6, type: 'spring' }}>
@@ -63,7 +63,7 @@ const Footer = () => {
 		</div>
 		</div>
 		<motion.div
-		className="absolute left-0 right-0 bottom-0 h-2 bg-gradient-to-r from-vox-accent to-vox-primary opacity-80"
+		className="absolute left-0 right-0 bottom-0 h-2 bg-gradient-to-r from-[#FC6432] to-black/100bg-gradient-to-r from-[#FC6432] to-black/100 opacity-80"
 		initial={{ opacity: 0, y: 20 }}
 		animate={{ opacity: 1, y: 0 }}
 		transition={{ duration: 0.7 }}
