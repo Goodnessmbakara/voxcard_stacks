@@ -130,11 +130,12 @@ VoxCard is a decentralized application (dApp) that enables users to create, join
 - **Location:** `voxcard-stacks/contracts/`
 - **Key Components:**
   - Core business logic (create plans, join, contribute, payouts)
+  - Multi-asset support (STX and sBTC)
   - Data structures (Plan, Frequency, JoinRequest, Config)
   - Public and read-only functions
   - Comprehensive error handling
 
-**Contract Version:** 1.0.0
+**Contract Version:** 1.1.0 (sBTC Integration)
 **Language:** Clarity (Stacks native language)
 
 ### Frontend Application
@@ -143,17 +144,25 @@ VoxCard is a decentralized application (dApp) that enables users to create, join
 - **Framework:** React 18 + Vite
 - **Language:** TypeScript
 - **UI Components:** shadcn/ui + Radix UI
-- **Styling:** Tailwind CSS
+- **Styling:** Tailwind CSS v3.4.11
 - **State Management:** React Context API + TanStack Query
 - **Routing:** React Router v6
 - **Animations:** Framer Motion
 
 **Key Services:**
-- `StacksWalletProvider.tsx` - Wallet integration (@stacks/connect)
+- `TurnkeyWalletProvider.tsx` - Embedded wallet management (Turnkey SDK)
+- `StacksWalletProvider.tsx` - External wallet integration (@stacks/connect)
 - `StacksContractProvider.tsx` - Smart contract interactions
+- `SBTCService.ts` - sBTC token operations and bridge integration
 - React context for blockchain state management
 
-**Wallet Integration:** @stacks/connect (Leather Wallet, Xverse, etc.)
+**Wallet Integration:**
+- **Primary:** Turnkey Embedded Wallets (Passkey-based, self-custodial)
+- **Secondary:** External wallets via @stacks/connect (Leather, Xverse)
+
+**Asset Support:**
+- **STX:** Native Stacks tokens for gas and contributions
+- **sBTC:** Bitcoin-backed synthetic asset (1:1 with BTC) for Bitcoin-denominated savings
 
 ### Backend (Metadata & Indexing - Optional Layer)
 
@@ -605,7 +614,9 @@ Utilizing shadcn/ui + Radix primitives for:
 ### Phase 0: Validation (Current - Weeks 1-2)
 - [x] Build MVP (smart contract + frontend)
 - [x] Migrate to Stacks blockchain
-- [ ] Deploy to Stacks testnet
+- [x] Integrate Turnkey Embedded Wallet SDK
+- [x] Add sBTC transaction support
+- [ ] Deploy to Stacks testnet with sBTC functionality
 - [ ] Conduct user interviews (10+ people)
 - [ ] Validate problem-solution fit
 - [ ] Document findings and iterate
@@ -632,6 +643,8 @@ Utilizing shadcn/ui + Radix primitives for:
 - [ ] TVL and user growth targets
 
 ### Future Enhancements
+- [x] Embedded wallet support (Turnkey integration)
+- [x] Bitcoin-backed savings (sBTC support)
 - Multi-currency support (USDC, other stablecoins)
 - Advanced trust score mechanics (on-time bonus, priority payouts)
 - Plan templates (savings goals, emergency funds, etc.)
@@ -639,6 +652,7 @@ Utilizing shadcn/ui + Radix primitives for:
 - Emergency withdrawal mechanisms
 - Secondary market for plan positions
 - Integration with other DeFi protocols (yield on pooled funds)
+- Enhanced sBTC bridge integration (embedded in-app)
 - Mobile app (iOS/Android)
 - Multi-chain expansion (Cosmos ecosystem, Layer 2s)
 

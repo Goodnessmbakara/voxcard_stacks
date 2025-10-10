@@ -4,7 +4,9 @@ description = ''
 authors = []
 telemetry = true
 cache_dir = './.cache'
-requirements = []
+
+[[project.requirements]]
+contract_id = 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token'
 [contracts.voxcard-savings]
 path = 'contracts/voxcard-savings.clar'
 clarity_version = 3

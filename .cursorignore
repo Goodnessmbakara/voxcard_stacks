@@ -1,0 +1,24 @@
+# Exclude large documentation from AI indexing
+docs/
+*_VALIDATION.md
+*_REPORT.md
+*_SUMMARY.md
+*_GUIDE.md
+STACKS_*.md
+TESTNET_*.md
+MARKET_*.md
+
+# Exclude build outputs
+dist/
+build/
+.next/
+.cache/
+
+# Exclude dependencies
+node_modules/
+.pnpm-store/
+
+# Exclude Clarinet artifacts
+voxcard-stacks/deployments/
+voxcard-stacks/settings/
+

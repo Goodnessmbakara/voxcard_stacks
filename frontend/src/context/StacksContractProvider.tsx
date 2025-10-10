@@ -1,5 +1,5 @@
 import { createContext, useContext, ReactNode } from "react";
-import { useStacksWallet } from "./StacksWalletProvider";
+import { useTurnkey } from "@turnkey/react-wallet-kit";
 import {
   makeContractCall,
   broadcastTransaction,
@@ -15,7 +15,7 @@ import {
   cvToJSON,
 } from "@stacks/transactions";
 import { StacksTestnet, StacksMainnet } from "@stacks/network";
-import { openContractCall } from "@stacks/connect";
+import { toast } from "@/hooks/use-toast";
 
 // Contract configuration
 const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS || "";
@@ -77,11 +77,48 @@ interface ContractContextProps {
 const ContractContext = createContext<ContractContextProps | null>(null);
 
 export const StacksContractProvider = ({ children }: { children: ReactNode }) => {
-  const { address, balance, isConnected, userData } = useStacksWallet();
+  const { address, authState } = useTurnkey();
+  const isConnected = authState === 'AUTHENTICATED';
+
+  // Helper function to make contract calls with embedded wallet
+  const makeContractCallWithEmbeddedWallet = async (txOptions: any) => {
+    if (!isConnected || !address) {
+      throw new Error("Embedded wallet not connected");
+    }
+
+    try {
+      // Build the transaction
+      const transaction = await makeContractCall({
+        ...txOptions,
+        network,
+        anchorMode: txOptions.anchorMode || AnchorMode.Any,
+        postConditionMode: txOptions.postConditionMode || PostConditionMode.Allow,
+      });
+
+      // For now, we'll use the traditional broadcast method
+      // In a full implementation, this would use Turnkey's signing
+      const result = await broadcastTransaction(transaction, network);
+      
+      toast({
+        title: "Transaction Submitted",
+        description: `Transaction ID: ${result.txid}`,
+      });
+
+      return result;
+    } catch (error: any) {
+      console.error("Transaction error:", error);
+      toast({
+        title: "Transaction Failed",
+        description: error.message || "Failed to broadcast transaction",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
 
   const createPlan = async (plan: CreatePlanInput): Promise<any> => {
     if (!isConnected || !address) {
-      throw new Error("Wallet not connected");
+      throw new Error("Embedded wallet not connected");
     }
 
     // Convert STX to microSTX (1 STX = 1,000,000 microSTX)
@@ -100,20 +137,14 @@ export const StacksContractProvider = ({ children }: { children: ReactNode }) =>
         uintCV(plan.duration_months),
         uintCV(plan.trust_score_required),
         boolCV(plan.allow_partial),
+        stringAsciiCV("STX"), // Default asset type
       ],
       network,
       anchorMode: AnchorMode.Any,
       postConditionMode: PostConditionMode.Allow,
-      appDetails: {
-        name: "VoxCard",
-        icon: window.location.origin + "/voxcard-logo.svg",
-      },
-      onFinish: (data: any) => {
-        console.log("Transaction finished:", data);
-      },
     };
 
-    return await openContractCall(txOptions);
+    return await makeContractCallWithEmbeddedWallet(txOptions);
   };
 
   const getPlansByCreator = async (creator: string) => {
@@ -225,16 +256,9 @@ export const StacksContractProvider = ({ children }: { children: ReactNode }) =>
       network,
       anchorMode: AnchorMode.Any,
       postConditionMode: PostConditionMode.Allow,
-      appDetails: {
-        name: "VoxCard",
-        icon: window.location.origin + "/voxcard-logo.svg",
-      },
-      onFinish: (data: any) => {
-        console.log("Join request submitted:", data);
-      },
     };
 
-    return await openContractCall(txOptions);
+    return await makeContractCallWithEmbeddedWallet(txOptions);
   };
 
   const approveJoinRequest = async (planId: number, requester: string): Promise<any> => {
@@ -250,16 +274,9 @@ export const StacksContractProvider = ({ children }: { children: ReactNode }) =>
       network,
       anchorMode: AnchorMode.Any,
       postConditionMode: PostConditionMode.Allow,
-      appDetails: {
-        name: "VoxCard",
-        icon: window.location.origin + "/voxcard-logo.svg",
-      },
-      onFinish: (data: any) => {
-        console.log("Join request approved:", data);
-      },
     };
 
-    return await openContractCall(txOptions);
+    return await makeContractCallWithEmbeddedWallet(txOptions);
   };
 
   const denyJoinRequest = async (planId: number, requester: string): Promise<any> => {
@@ -275,16 +292,9 @@ export const StacksContractProvider = ({ children }: { children: ReactNode }) =>
       network,
       anchorMode: AnchorMode.Any,
       postConditionMode: PostConditionMode.Allow,
-      appDetails: {
-        name: "VoxCard",
-        icon: window.location.origin + "/voxcard-logo.svg",
-      },
-      onFinish: (data: any) => {
-        console.log("Join request denied:", data);
-      },
     };
 
-    return await openContractCall(txOptions);
+    return await makeContractCallWithEmbeddedWallet(txOptions);
   };
 
   const getJoinRequests = async (planId: number): Promise<{ requests: string[] }> => {
@@ -312,7 +322,7 @@ export const StacksContractProvider = ({ children }: { children: ReactNode }) =>
 
   const contribute = async (planId: number, amountMicroSTX: string) => {
     if (!isConnected || !address) {
-      throw new Error("Wallet not connected");
+      throw new Error("Embedded wallet not connected");
     }
 
     const txOptions = {
@@ -324,16 +334,9 @@ export const StacksContractProvider = ({ children }: { children: ReactNode }) =>
       anchorMode: AnchorMode.Any,
       postConditionMode: PostConditionMode.Allow,
       postConditions: [],
-      appDetails: {
-        name: "VoxCard",
-        icon: window.location.origin + "/voxcard-logo.svg",
-      },
-      onFinish: (data: any) => {
-        console.log("Contribution submitted:", data);
-      },
     };
 
-    return await openContractCall(txOptions);
+    return await makeContractCallWithEmbeddedWallet(txOptions);
   };
 
   const getParticipantCycleStatus = async (planId: number, participant: string): Promise<ParticipantCycleStatus> => {

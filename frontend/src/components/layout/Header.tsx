@@ -2,11 +2,28 @@ import { Link } from "react-router-dom";
 import { VoxCardLogo } from "@/components/shared/VoxCardLogo";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu } from "lucide-react";
-import { useTurnkey } from "@turnkey/react-wallet-kit";
+import { Menu, LogOut, User } from "lucide-react";
+import { useTurnkey, AuthState } from "@turnkey/react-wallet-kit";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export const Header = () => {
-	const { handleLogin } = useTurnkey();
+	const { handleLogin, authState, user, handleLogout } = useTurnkey();
+  const isAuthenticated = authState === AuthState.Authenticated;
+
+  const logout = () => {
+    // Clear localStorage
+    localStorage.removeItem('turnkey_auth_state');
+    localStorage.removeItem('turnkey_session');
+    // Call Turnkey's logout
+    handleLogout();
+  };
 
 
   return (
@@ -42,7 +59,49 @@ export const Header = () => {
             >
               About
             </Link>
-            <Button onClick={() => handleLogin()} className="gradient-bg text-white">Login</Button>
+            
+            {/* Authentication Button/Menu */}
+            {isAuthenticated ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    <span className="hidden lg:inline">{user?.userName || 'User'}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium">{user?.userName || 'User'}</p>
+                      <p className="text-xs text-gray-500">Authenticated</p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/dashboard" className="cursor-pointer">
+                      Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/groups" className="cursor-pointer">
+                      My Groups
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={logout}
+                    className="cursor-pointer text-red-600"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button onClick={() => handleLogin()} className="gradient-bg text-white">
+                Login
+              </Button>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -87,7 +146,29 @@ export const Header = () => {
                   </nav>
 
                   <div className="mt-8">
-                    <Button onClick={() => handleLogin()} className="w-full gradient-bg text-white">Login</Button>
+                    {isAuthenticated ? (
+                      <div className="space-y-3">
+                        <div className="p-4 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-2 mb-2">
+                            <User className="h-5 w-5 text-vox-primary" />
+                            <span className="font-semibold">{user?.userName || 'User'}</span>
+                          </div>
+                          <p className="text-xs text-gray-500">Authenticated</p>
+                        </div>
+                        <Button 
+                          onClick={logout} 
+                          variant="outline"
+                          className="w-full text-red-600 border-red-200 hover:bg-red-50"
+                        >
+                          <LogOut className="mr-2 h-4 w-4" />
+                          Logout
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button onClick={() => handleLogin()} className="w-full gradient-bg text-white">
+                        Login
+                      </Button>
+                    )}
                   </div>
                 </div>
               </SheetContent>

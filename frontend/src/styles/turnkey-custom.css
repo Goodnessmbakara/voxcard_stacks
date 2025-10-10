@@ -1,0 +1,261 @@
+/* Turnkey Embedded Wallet Custom Styling */
+
+/* Modal Container Styling */
+.turnkey-modal {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Modal Content */
+.turnkey-modal-content {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-radius: 16px !important;
+  padding: 2rem !important;
+  margin: 1rem !important;
+}
+
+/* Header Styling */
+.turnkey-modal h1,
+.turnkey-modal h2 {
+  background: linear-gradient(135deg, #f48024, #ff9a56) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  font-weight: 700 !important;
+  text-align: center !important;
+  margin-bottom: 1.5rem !important;
+}
+
+/* Input Field Styling */
+.turnkey-modal input[type="email"],
+.turnkey-modal input[type="text"] {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border: 2px solid #e5e7eb !important;
+  border-radius: 12px !important;
+  padding: 1rem 1.25rem !important;
+  font-size: 1rem !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+}
+
+.turnkey-modal input[type="email"]:focus,
+.turnkey-modal input[type="text"]:focus {
+  border-color: #f48024 !important;
+  box-shadow: 0 0 0 3px rgba(244, 128, 36, 0.1) !important;
+  outline: none !important;
+}
+
+/* Button Styling */
+.turnkey-modal button {
+  background: linear-gradient(135deg, #f48024, #ff9a56) !important;
+  border: none !important;
+  border-radius: 12px !important;
+  padding: 1rem 1.5rem !important;
+  font-weight: 600 !important;
+  color: white !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 4px 14px 0 rgba(244, 128, 36, 0.3) !important;
+  cursor: pointer !important;
+  width: 100% !important;
+  margin: 0.5rem 0 !important;
+}
+
+.turnkey-modal button:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 25px 0 rgba(244, 128, 36, 0.4) !important;
+}
+
+.turnkey-modal button:active {
+  transform: translateY(0) !important;
+}
+
+/* Secondary Button Styling */
+.turnkey-modal button[data-variant="secondary"] {
+  background: linear-gradient(135deg, #6b7280, #9ca3af) !important;
+  box-shadow: 0 4px 14px 0 rgba(107, 114, 128, 0.3) !important;
+}
+
+.turnkey-modal button[data-variant="secondary"]:hover {
+  box-shadow: 0 8px 25px 0 rgba(107, 114, 128, 0.4) !important;
+}
+
+/* Separator Styling */
+.turnkey-modal .separator {
+  display: flex !important;
+  align-items: center !important;
+  margin: 1.5rem 0 !important;
+  color: #6b7280 !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+}
+
+.turnkey-modal .separator::before,
+.turnkey-modal .separator::after {
+  content: '' !important;
+  flex: 1 !important;
+  height: 1px !important;
+  background: linear-gradient(90deg, transparent, #e5e7eb, transparent) !important;
+}
+
+.turnkey-modal .separator span {
+  padding: 0 1rem !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-radius: 50px !important;
+}
+
+/* Legal Text Styling */
+.turnkey-modal .legal-text {
+  font-size: 0.75rem !important;
+  color: #6b7280 !important;
+  text-align: center !important;
+  margin-top: 1.5rem !important;
+  line-height: 1.4 !important;
+}
+
+.turnkey-modal .legal-text a {
+  color: #f48024 !important;
+  text-decoration: none !important;
+  font-weight: 500 !important;
+}
+
+.turnkey-modal .legal-text a:hover {
+  text-decoration: underline !important;
+}
+
+/* Security Badge */
+.turnkey-modal .security-badge {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-top: 1rem !important;
+  padding: 0.5rem 1rem !important;
+  background: rgba(34, 197, 94, 0.1) !important;
+  border-radius: 50px !important;
+  color: #16a34a !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+}
+
+/* Close Button - Custom styling without breaking functionality */
+.turnkey-modal .custom-close-button {
+  /* Only add visual enhancements, don't override positioning or behavior */
+  background: rgba(255, 255, 255, 0.9) !important;
+  border: none !important;
+  border-radius: 50% !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.turnkey-modal .custom-close-button:hover {
+  background: rgba(255, 255, 255, 1) !important;
+  transform: scale(1.05) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Alternative selector for close button */
+.turnkey-modal button[aria-label="Close"],
+.turnkey-modal button[aria-label="close"],
+.turnkey-modal [data-testid="close-button"] {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border: none !important;
+  border-radius: 50% !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.turnkey-modal button[aria-label="Close"]:hover,
+.turnkey-modal button[aria-label="close"]:hover,
+.turnkey-modal [data-testid="close-button"]:hover {
+  background: rgba(255, 255, 255, 1) !important;
+  transform: scale(1.05) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Animation Classes */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.turnkey-modal {
+  animation: slideIn 0.3s ease-out !important;
+}
+
+.turnkey-modal-content > * {
+  animation: fadeInUp 0.4s ease-out !important;
+}
+
+.turnkey-modal-content > *:nth-child(2) {
+  animation-delay: 0.1s !important;
+}
+
+.turnkey-modal-content > *:nth-child(3) {
+  animation-delay: 0.2s !important;
+}
+
+.turnkey-modal-content > *:nth-child(4) {
+  animation-delay: 0.3s !important;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .turnkey-modal {
+    margin: 1rem !important;
+    border-radius: 16px !important;
+  }
+  
+  .turnkey-modal-content {
+    padding: 1.5rem !important;
+    margin: 0.5rem !important;
+  }
+  
+  .turnkey-modal button {
+    padding: 0.875rem 1.25rem !important;
+  }
+}
+
+/* Custom VoxCard Branding */
+.turnkey-modal .voxcard-branding {
+  text-align: center !important;
+  margin-bottom: 1rem !important;
+}
+
+.turnkey-modal .voxcard-logo {
+  width: 40px !important;
+  height: 40px !important;
+  background: linear-gradient(135deg, #f48024, #ff9a56) !important;
+  border-radius: 10px !important;
+  margin: 0 auto 0.5rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: white !important;
+  font-weight: bold !important;
+  font-size: 1.25rem !important;
+}
+
+.turnkey-modal .voxcard-tagline {
+  font-size: 0.875rem !important;
+  color: #6b7280 !important;
+  font-weight: 500 !important;
+}

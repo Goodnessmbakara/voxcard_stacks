@@ -1,6 +1,6 @@
 ;; VoxCard Savings - Community Savings & Rotating Credit on Stacks
 ;; A decentralized platform for Ajo/Esusu-style savings groups with trust scoring
-;; Built for the Stacks Builders Challenge - Embedded Wallet Integration
+;; Built for the Stacks Builders Challenge - Embedded Wallet Integration with sBTC Support
 
 ;; =============================================================================
 ;; CONSTANTS & ERROR CODES
@@ -8,6 +8,9 @@
 
 ;; Contract owner
 (define-constant contract-owner tx-sender)
+
+;; sBTC Token Contract (Testnet)
+(define-constant sbtc-token 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token)
 
 ;; Error codes with descriptive names
 (define-constant err-owner-only (err u100))
@@ -24,6 +27,9 @@
 (define-constant err-join-request-not-found (err u111))
 (define-constant err-contribution-below-minimum (err u112))
 (define-constant err-partial-payment-not-allowed (err u113))
+(define-constant err-invalid-string-length (err u114))
+(define-constant err-invalid-frequency (err u115))
+(define-constant err-invalid-asset-type (err u116))
 
 ;; Plan status constants
 (define-constant status-active u1)
@@ -70,7 +76,8 @@
         allow-partial: bool,
         current-cycle: uint,
         is-active: bool,
-        created-at: uint
+        created-at: uint,
+        asset-type: (string-ascii 10) ;; "STX" or "sBTC"
     }
 )
 
@@ -143,6 +150,75 @@
         requests: (list 50 principal),
         request-count: uint
     }
+)
+
+;; =============================================================================
+;; INPUT VALIDATION FUNCTIONS
+;; =============================================================================
+
+;; Validate string length for plan name
+(define-private (validate-plan-name (name (string-utf8 100)))
+    (if (and (> (len name) u0) (<= (len name) u100))
+        true
+        false
+    )
+)
+
+;; Validate string length for plan description
+(define-private (validate-plan-description (description (string-utf8 500)))
+    (if (and (> (len description) u0) (<= (len description) u500))
+        true
+        false
+    )
+)
+
+;; Validate frequency string
+(define-private (validate-frequency (frequency (string-ascii 20)))
+    (if (or
+            (is-eq frequency "Daily")
+            (is-eq frequency "Weekly") 
+            (is-eq frequency "Biweekly")
+            (is-eq frequency "Monthly")
+        )
+        true
+        false
+    )
+)
+
+;; Validate asset type
+(define-private (validate-asset-type (asset-type (string-ascii 10)))
+    (if (or
+            (is-eq asset-type "STX")
+            (is-eq asset-type "sBTC")
+        )
+        true
+        false
+    )
+)
+
+;; Validate plan parameters
+(define-private (validate-plan-parameters 
+    (name (string-utf8 100))
+    (description (string-utf8 500))
+    (total-participants uint)
+    (contribution-amount uint)
+    (frequency (string-ascii 20))
+    (duration-months uint)
+    (trust-score-required uint)
+    (asset-type (string-ascii 10))
+)
+    (and
+        (validate-plan-name name)
+        (validate-plan-description description)
+        (> total-participants u0)
+        (<= total-participants max-participants)
+        (>= contribution-amount min-contribution-amount)
+        (validate-frequency frequency)
+        (> duration-months u0)
+        (<= duration-months u24) ;; Max 24 months
+        (<= trust-score-required u100)
+        (validate-asset-type asset-type)
+    )
 )
 
 ;; =============================================================================
@@ -228,14 +304,14 @@
     (duration-months uint)
     (trust-score-required uint)
     (allow-partial bool)
+    (asset-type (string-ascii 10))
 )
     (let (
         (plan-id (+ (var-get plan-nonce) u1))
         (creator tx-sender)
     )
-        ;; Validate parameters
-        (asserts! (validate-plan-params total-participants contribution-amount duration-months) err-invalid-plan-parameters)
-        (asserts! (<= trust-score-required u100) err-invalid-plan-parameters)
+        ;; Validate all parameters using comprehensive validation
+        (asserts! (validate-plan-parameters name description total-participants contribution-amount frequency duration-months trust-score-required asset-type) err-invalid-plan-parameters)
         
         ;; Create the plan
         (map-set plans
@@ -252,7 +328,8 @@
                 allow-partial: allow-partial,
                 current-cycle: u1,
                 is-active: true,
-                created-at: burn-block-height
+                created-at: burn-block-height,
+                asset-type: asset-type
             }
         )
         
@@ -491,6 +568,68 @@
     )
 )
 
+;; Make an sBTC contribution to a plan
+(define-public (contribute-sbtc (plan-id uint) (amount uint))
+    (let (
+        (plan (unwrap! (map-get? plans { plan-id: plan-id }) err-plan-not-found))
+        (contributor tx-sender)
+        (current-cycle (get current-cycle plan))
+        (participant (unwrap! (map-get? plan-participants { plan-id: plan-id, participant: contributor }) err-not-participant))
+        (cycle-contribution (map-get? cycle-contributions { plan-id: plan-id, participant: contributor, cycle: current-cycle }))
+    )
+        ;; Validations
+        (asserts! (get is-active plan) err-plan-inactive)
+        (asserts! (is-eq (get asset-type plan) "sBTC") err-invalid-contribution)
+        (asserts! (>= amount min-contribution-amount) err-contribution-below-minimum)
+        
+        ;; Check if partial payments are allowed
+        (if (get allow-partial plan)
+            (asserts! (>= amount min-contribution-amount) err-contribution-below-minimum)
+            (asserts! (is-eq amount (get contribution-amount plan)) err-partial-payment-not-allowed)
+        )
+        
+        ;; Calculate total contributed in this cycle
+        (let (
+            (existing-contribution (default-to { amount-contributed: u0, contributed-at: u0, is-complete: false } cycle-contribution))
+            (previous-contribution (get amount-contributed existing-contribution))
+            (new-total (+ previous-contribution amount))
+            (is-complete (>= new-total (get contribution-amount plan)))
+        )
+            ;; Transfer sBTC to contract using SIP-010 transfer
+            (try! (contract-call? sbtc-token transfer amount contributor (as-contract tx-sender) none))
+            
+            ;; Update cycle contribution
+            (map-set cycle-contributions
+                { plan-id: plan-id, participant: contributor, cycle: current-cycle }
+                {
+                    amount-contributed: new-total,
+                    contributed-at: burn-block-height,
+                    is-complete: is-complete
+                }
+            )
+            
+            ;; Update participant stats if cycle complete
+            (if is-complete
+                (begin
+                    (map-set plan-participants
+                        { plan-id: plan-id, participant: contributor }
+                        (merge participant 
+                            { 
+                                total-contributed: (+ (get total-contributed participant) new-total),
+                                cycles-completed: (+ (get cycles-completed participant) u1)
+                            }
+                        )
+                    )
+                    (update-trust-score-on-contribution contributor amount)
+                )
+                true
+            )
+            
+            (ok { contributed: amount, total-this-cycle: new-total, is-complete: is-complete })
+        )
+    )
+)
+
 ;; =============================================================================
 ;; READ-ONLY FUNCTIONS
 ;; =============================================================================
@@ -575,6 +714,9 @@
 (define-read-only (get-platform-fee-bps)
     (ok (var-get platform-fee-bps))
 )
+
+;; Note: For sBTC balances, query the sBTC token contract directly from frontend
+;; Read-only functions cannot contain contract-call? as they may have side effects
 
 ;; =============================================================================
 ;; ADMIN FUNCTIONS

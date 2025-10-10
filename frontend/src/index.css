@@ -1,8 +1,160 @@
-@import url('https://fonts.googleapis.com/css2?family=Darker+Grotesque:wght@300;400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Darker+Grotesque:wght@300;400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap')
+layer(base);
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import './styles/turnkey-custom.css' layer(components);
+
+@custom-variant dark (&:is(.dark *));
+
+@utility container {
+  margin-inline: auto;
+  padding-inline: 2rem;
+  @media (width >= --theme(--breakpoint-sm)) {
+    max-width: none;
+  }
+  @media (width >= 1400px) {
+    max-width: 1400px;
+  }
+}
+
+@theme {
+  --color-vox-primary: #f48024;
+  --color-vox-primary-light: #ff9a56;
+
+  --color-vox-secondary: #242729;
+  --color-vox-secondary-light: #bbc0c4;
+
+  --color-vox-accent: #0095ff;
+  --color-vox-accent-light: #5dbaff;
+
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-sidebar: hsl(var(--sidebar-background));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  --color-ajo-primary: #9b87f5;
+  --color-ajo-secondary: #7e69ab;
+  --color-ajo-tertiary: #6e59a5;
+  --color-ajo-dark: #1a1f2c;
+  --color-ajo-light: #d6bcfa;
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --font-sans:
+    Montserrat, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
+    'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-heading:
+    Darker Grotesque, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
+    'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-fade-in: fade-in 0.5s ease-out forwards;
+  --animate-pulse-light: pulse-light 2s ease-in-out infinite;
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+  @keyframes fade-in {
+    0% {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes pulse-light {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.8;
+    }
+  }
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility btn-secondary {
+  @apply bg-vox-secondary hover:bg-vox-secondary-light text-white font-semibold py-2 px-4 rounded-md transition-colors duration-200;
+}
+
+@utility btn-accent {
+  @apply bg-vox-accent hover:bg-vox-accent-light text-white font-semibold py-2 px-4 rounded-md transition-colors duration-200;
+}
+
+@utility card {
+  @apply bg-white rounded-lg shadow-md p-6;
+}
+
+@utility input-primary {
+  @apply border border-gray-300 rounded-md px-4 py-2 focus:outline-hidden focus:ring-2 focus:ring-vox-primary focus:border-transparent;
+}
 
 @layer base {
   :root {
@@ -82,45 +234,27 @@
   }
 
   .gradient-text {
-    @apply bg-gradient-to-r from-vox-primary to-vox-primary-light bg-clip-text text-transparent;
+    @apply bg-linear-to-r from-vox-primary to-vox-primary-light bg-clip-text text-transparent;
   }
 
   .gradient-bg {
-    @apply bg-gradient-to-r from-vox-primary to-vox-primary-light;
+    @apply bg-linear-to-r from-vox-primary to-vox-primary-light;
   }
 
   .gradient-bg-secondary {
-    @apply bg-gradient-to-r from-vox-secondary to-vox-secondary-light;
+    @apply bg-linear-to-r from-vox-secondary to-vox-secondary-light;
   }
 
   .gradient-bg-accent {
-    @apply bg-gradient-to-r from-vox-accent to-vox-accent-light;
+    @apply bg-linear-to-r from-vox-accent to-vox-accent-light;
   }
 
   .ajo-card {
-    @apply bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all p-6;
+    @apply bg-white rounded-xl border border-gray-100 shadow-xs hover:shadow-md transition-all p-6;
   }
 
   .btn-primary {
     @apply bg-vox-primary hover:bg-vox-primary-light text-white font-semibold py-2 px-4 rounded-md transition-colors duration-200;
-  }
-}
-
-@layer components {
-  .btn-secondary {
-    @apply bg-vox-secondary hover:bg-vox-secondary-light text-white font-semibold py-2 px-4 rounded-md transition-colors duration-200;
-  }
-  
-  .btn-accent {
-    @apply bg-vox-accent hover:bg-vox-accent-light text-white font-semibold py-2 px-4 rounded-md transition-colors duration-200;
-  }
-  
-  .card {
-    @apply bg-white rounded-lg shadow-md p-6;
-  }
-  
-  .input-primary {
-    @apply border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-vox-primary focus:border-transparent;
   }
 }
 

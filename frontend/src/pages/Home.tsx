@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 import Layout from '@/components/layout/Footer';
+import { TurnkeyTest } from '@/components/TurnkeyTest';
 
 const Home = () => {
   return (
@@ -282,6 +283,14 @@ const Home = () => {
               </Link>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Turnkey Test Component - Remove after testing */}
+      <section className="py-12 bg-gray-50">
+        <div className="container">
+          <h2 className="text-2xl font-bold text-center mb-8">Turnkey Embedded Wallet Test</h2>
+          <TurnkeyTest />
         </div>
       </section>
     </>
