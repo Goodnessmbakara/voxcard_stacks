@@ -13,8 +13,19 @@ import NotFound from "./pages/NotFound";
 import About from './pages/About';
 import { StacksWalletProvider } from "./context/StacksWalletProvider";
 import { StacksContractProvider } from "./context/StacksContractProvider";
-import Header from "./components/layout/Header";
+import {Header} from "./components/layout/Header";
 import Footer from "./components/layout/Footer";
+import {
+	TurnkeyProvider,
+	TurnkeyProviderConfig,
+  } from "@turnkey/react-wallet-kit";
+
+  const turnkeyConfig: TurnkeyProviderConfig = {
+	organizationId: import.meta.env.VITE_ORGANIZATION_ID!,
+	authProxyConfigId: import.meta.env.VITE_AUTH_PROXY_CONFIG_ID!,
+  };
+
+
 
 const queryClient = new QueryClient();
 
@@ -25,12 +36,18 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <StacksWalletProvider>
+          {/* <StacksWalletProvider> */}
+		  <TurnkeyProvider 
+		  	config={turnkeyConfig}
+			  callbacks={{
+				onError: (error) => console.error("Turnkey error:", error),
+			  }}
+			>
             <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 flex flex-col">
               <Header />
 
               <main className="container mx-auto px-4 py-8 flex-1 w-full">
-                <StacksContractProvider>
+                {/* <StacksContractProvider> */}
                   <AnimatePresence mode="wait">
                     <Routes>
                       <Route path="/" element={<Home />} />
@@ -42,12 +59,13 @@ const App = () => {
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </AnimatePresence>
-                </StacksContractProvider>
+                {/* </StacksContractProvider> */}
               </main>
 
               <Footer />
             </div>
-          </StacksWalletProvider>
+          {/* </StacksWalletProvider> */}
+		</TurnkeyProvider>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
