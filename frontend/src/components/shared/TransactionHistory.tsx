@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useStacksWallet } from "@/context/StacksWalletProvider";
+import { useTurnkeyWallet } from "@/context/TurnkeyWalletProvider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Clock, X } from "lucide-react";
 import { format } from "date-fns";
@@ -17,7 +17,7 @@ interface TransactionRecordDisplay {
 }
 
 const TransactionHistory = () => {
-  const { isConnected } = useStacksWallet();
+  const { isConnected } = useTurnkeyWallet();
   
   const [transactions, setTransactions] = useState<TransactionRecordDisplay[]>(
     []

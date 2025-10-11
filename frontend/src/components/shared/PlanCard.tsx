@@ -4,10 +4,10 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useStacksWallet } from '@/context/StacksWalletProvider';
+import { useTurnkeyWallet } from '@/context/TurnkeyWalletProvider';
 
 export const PlanCard = ({ plan }: { plan: Plan }) => {
-  const { address: walletAddress } = useStacksWallet();
+  const { address: walletAddress } = useTurnkeyWallet();
   const participants = Array.isArray(plan.participants) ? plan.participants : [];
   const address = (walletAddress || "").toLowerCase();
 

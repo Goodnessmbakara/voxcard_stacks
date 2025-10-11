@@ -14,16 +14,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export const Header = () => {
-	const { handleLogin, authState, user, handleLogout } = useTurnkey();
+	const { handleLogin, authState, user } = useTurnkey();
   const isAuthenticated = authState === AuthState.Authenticated;
-
-  const logout = () => {
-    // Clear localStorage
-    localStorage.removeItem('turnkey_auth_state');
-    localStorage.removeItem('turnkey_session');
-    // Call Turnkey's logout
-    handleLogout();
-  };
 
 
   return (
@@ -88,13 +80,6 @@ export const Header = () => {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    onClick={logout}
-                    className="cursor-pointer text-red-600"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Logout
-                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
@@ -155,14 +140,6 @@ export const Header = () => {
                           </div>
                           <p className="text-xs text-gray-500">Authenticated</p>
                         </div>
-                        <Button 
-                          onClick={logout} 
-                          variant="outline"
-                          className="w-full text-red-600 border-red-200 hover:bg-red-50"
-                        >
-                          <LogOut className="mr-2 h-4 w-4" />
-                          Logout
-                        </Button>
                       </div>
                     ) : (
                       <Button onClick={() => handleLogin()} className="w-full gradient-bg text-white">

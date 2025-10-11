@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw, ExternalLink, Bitcoin } from "lucide-react";
 import { SBTCService } from "@/services/sbtcService";
 import { useTurnkeyWallet } from "@/context/TurnkeyWalletProvider";
-import { useStacksWallet } from "@/context/StacksWalletProvider";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
@@ -28,15 +27,7 @@ export const SBTCBalanceBadge = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Try Turnkey wallet first, fall back to Stacks wallet
-  const turnkeyWallet = useTurnkeyWallet();
-  const stacksWallet = useStacksWallet();
-
-  const address = turnkeyWallet?.isConnected 
-    ? turnkeyWallet.address 
-    : stacksWallet?.isConnected 
-    ? stacksWallet.address 
-    : null;
+  const { address, isConnected } = useTurnkeyWallet();
 
   const fetchBalance = async () => {
     if (!address) {
@@ -70,7 +61,7 @@ export const SBTCBalanceBadge = ({
     fetchBalance();
   }, [address]);
 
-  if (!address) {
+  if (!isConnected || !address) {
     return null;
   }
 
@@ -143,4 +134,3 @@ export const SBTCBalanceBadge = ({
 };
 
 export default SBTCBalanceBadge;
-

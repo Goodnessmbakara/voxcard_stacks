@@ -13,6 +13,13 @@ VITE_CONTRACT_ADDRESS=ST3DSAPR2WF7D7SMR6W0R436AA6YYTD8RFT9E9NPH
 
 # The name of your deployed contract
 VITE_CONTRACT_NAME=voxcard-savings
+
+# Turnkey Embedded Wallet Configuration
+# Values provided by your Turnkey dashboard
+VITE_TURNKEY_ORGANIZATION_ID=your-turnkey-organization-id
+VITE_AUTH_PROXY_CONFIG_ID=your-auth-proxy-config-id
+# Optional: override only if you are using a custom Turnkey API domain
+# VITE_TURNKEY_API_BASE_URL=https://api.turnkey.com
 ```
 
 ## Network Details
@@ -40,4 +47,3 @@ The application uses `@stacks/connect` for wallet integration, which supports:
 - Other Stacks-compatible wallets
 
 Users will be prompted to connect their wallet when they first interact with the application.
-

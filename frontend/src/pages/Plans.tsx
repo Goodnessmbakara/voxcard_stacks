@@ -14,7 +14,7 @@ import { Search, Plus, Users, Shield, Zap, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useContract } from '@/context/StacksContractProvider';
-import { useStacksWallet } from '@/context/StacksWalletProvider';
+import { useTurnkeyWallet } from '@/context/TurnkeyWalletProvider';
 import { Plan } from '@/types/utils';
 
 const Plans = () => {
@@ -27,7 +27,15 @@ const Plans = () => {
   const pageSize = 10; // adjust as needed
 
   const { getPaginatedPlans } = useContract();
-  const { isConnected, address } = useStacksWallet();
+  const {
+    isConnected,
+    address,
+    connectWithPasskey,
+    isAuthenticated,
+    hasAccount,
+    createWallet,
+  } = useTurnkeyWallet();
+  const [isCreatingWallet, setIsCreatingWallet] = useState(false);
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -143,17 +151,39 @@ const Plans = () => {
                   <Users size={40} className="text-vox-primary" />
                 </div>
                 <h2 className="text-2xl font-heading font-bold text-gray-800 mb-4">
-                  Connect Your Wallet
+                  {isAuthenticated ? "Create Your Wallet" : "Connect Your Wallet"}
                 </h2>
                 <p className="text-gray-600 mb-6">
-                  Please connect your wallet to view and join savings groups.
+                  {isAuthenticated
+                    ? "You are signed in. Create an embedded wallet to browse and join savings groups."
+                    : "Please sign in to browse groups and participate."}
                 </p>
-                <Button 
-                  onClick={() => window.location.reload()} // This will trigger wallet connection via header
-                  className="bg-vox-primary text-white hover:bg-vox-primary/90"
-                >
-                  Connect Wallet
-                </Button>
+                <div className="flex flex-col gap-3 items-center">
+                  {!isAuthenticated && (
+                    <Button
+                      onClick={() => connectWithPasskey()}
+                      className="bg-vox-primary text-white hover:bg-vox-primary/90"
+                    >
+                      Sign In with Turnkey
+                    </Button>
+                  )}
+                  {isAuthenticated && !hasAccount && (
+                    <Button
+                      onClick={async () => {
+                        try {
+                          setIsCreatingWallet(true);
+                          await createWallet();
+                        } finally {
+                          setIsCreatingWallet(false);
+                        }
+                      }}
+                      disabled={isCreatingWallet}
+                      className="bg-vox-primary text-white hover:bg-vox-primary/90"
+                    >
+                      {isCreatingWallet ? "Creating Wallet..." : "Create Embedded Wallet"}
+                    </Button>
+                  )}
+                </div>
               </div>
             </motion.div>
           ) : loading ? (

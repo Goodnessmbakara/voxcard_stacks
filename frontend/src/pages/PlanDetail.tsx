@@ -16,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Check, Users } from "lucide-react";
 import ContributeModal from "@/components/modals/ContributeModal";
-import { useStacksWallet } from "@/context/StacksWalletProvider";
+import { useTurnkeyWallet } from "@/context/TurnkeyWalletProvider";
 import { shortenAddress } from "@/services/utils";
 import type { ParticipantCycleStatus } from "@/types/utils";
 
@@ -40,7 +40,7 @@ const PlanDetail = () => {
   const [plan, setPlan] = useState<Plan | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
 
-  const { address: walletAddress } = useStacksWallet();
+  const { address: walletAddress } = useTurnkeyWallet();
   const { getPlanById } = useContract();
   const address = (walletAddress || "").toLowerCase();
   const participants = Array.isArray(plan?.participants) ? plan.participants : [];
@@ -56,9 +56,10 @@ const PlanDetail = () => {
 
   useEffect(() => {
     const fetchPlan = async () => {
-      if (planId) {
-        const res = await getPlanById(Number(planId));
-        if (res?.plan) setPlan(res.plan);
+      if (!planId) return;
+      const planData = await getPlanById(Number(planId));
+      if (planData) {
+        setPlan(planData);
       }
     };
     fetchPlan();

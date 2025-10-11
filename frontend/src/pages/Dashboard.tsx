@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { mockPayouts, defaultUser } from '@/lib/mock-data';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { useStacksWallet } from '@/context/StacksWalletProvider';
+import { useTurnkeyWallet } from '@/context/TurnkeyWalletProvider';
 import PlanCard from '@/components/shared/PlanCard';
 import TrustScoreBadge from '@/components/shared/TrustScoreBadge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -18,9 +18,30 @@ import { Plan } from '../types/utils';
 
 const explorerUrl = (address: string) => `https://explorer.hiro.so/address/${address}?chain=testnet`;
 
-const ManageWalletModal = ({ open, onClose, address }: { open: boolean; onClose: () => void; address: string; }) => {
-	const { balance } = useContract();
+interface ManageWalletModalProps {
+  open: boolean;
+  onClose: () => void;
+  address: string;
+  hasAccount: boolean;
+  onCreateWallet: () => Promise<void>;
+  onImportWallet: () => Promise<void>;
+  onDisconnect: () => Promise<void>;
+  isCreating: boolean;
+}
+
+const ManageWalletModal = ({
+  open,
+  onClose,
+  address,
+  hasAccount,
+  onCreateWallet,
+  onImportWallet,
+  onDisconnect,
+  isCreating,
+}: ManageWalletModalProps) => {
+  const { balance } = useContract();
   const [copied, setCopied] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
 
   const walletAddress = address;
 	
@@ -32,8 +53,26 @@ const ManageWalletModal = ({ open, onClose, address }: { open: boolean; onClose:
     }
   };
 
+  const handleDisconnect = async () => {
+    try {
+      setIsDisconnecting(true);
+      await onDisconnect();
+      onClose();
+    } finally {
+      setIsDisconnecting(false);
+    }
+  };
+
+  const handleCreateWallet = async () => {
+    await onCreateWallet();
+  };
+
+  const handleImportWallet = async () => {
+    await onImportWallet();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(value) => { if (!value) onClose(); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Manage Account</DialogTitle>
@@ -42,38 +81,79 @@ const ManageWalletModal = ({ open, onClose, address }: { open: boolean; onClose:
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-			<div className="flex items-center justify-between">
-				<div className="text-sm text-gray-500">Balance</div>
-				<div className="font-semibold">{balance} STX</div>
-			</div>
-          <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2">
-            <span className="font-mono text-xs break-all">
-              {walletAddress ? shortenAddress(walletAddress) : 'No Address Connected'}
-            </span>
-            <Button onClick={handleCopy} className="ml-1">
-              <Copy size={16} className={copied ? 'text-vox-accent' : ''} />
-            </Button>
-            {copied && <span className="text-xs text-vox-accent">Copied!</span>}
-          </div>
-          <div className="flex flex-col gap-2">
-            <a
-              href={walletAddress ? explorerUrl(walletAddress) : '#'}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-vox-primary hover:underline text-sm"
-            >
-              <ExternalLink size={16} /> View on Mintscan
-            </a>
-            <Button
-              className="w-full flex items-center gap-2 border-red-500 text-red-600 hover:bg-red-50"
-              onClick={onClose}
-            >
-              <LogOut size={16} /> Logout Account
-            </Button>
+          <div className="space-y-3">
+            {hasAccount ? (
+              <>
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-gray-500">Balance</div>
+                  <div className="font-semibold">{balance} STX</div>
+                </div>
+                <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2">
+                  <span className="font-mono text-xs break-all">
+                    {walletAddress ? shortenAddress(walletAddress) : "No Address Connected"}
+                  </span>
+                  <Button onClick={handleCopy} className="ml-1">
+                    <Copy size={16} className={copied ? "text-vox-accent" : ""} />
+                  </Button>
+                  {copied && <span className="text-xs text-vox-accent">Copied!</span>}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <a
+                    href={walletAddress ? explorerUrl(walletAddress) : "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-vox-primary hover:underline text-sm"
+                  >
+                    <ExternalLink size={16} /> View on Hiro Explorer
+                  </a>
+                  <Button
+                    variant="outline"
+                    className="w-full flex items-center gap-2 border-red-500 text-red-600 hover:bg-red-50"
+                    onClick={handleDisconnect}
+                    disabled={isDisconnecting}
+                  >
+                    <LogOut size={16} /> {isDisconnecting ? "Disconnecting..." : "Disconnect"}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600">
+                  You are signed in but do not have an embedded wallet yet. Create one to start
+                  interacting with VoxCard on Stacks.
+                </p>
+                <Button
+                  onClick={handleCreateWallet}
+                  className="w-full gradient-bg text-white hover:opacity-90 transition-opacity"
+                  disabled={isCreating}
+                >
+                  {isCreating ? (
+                    <>
+                      <RefreshCw size={16} className="mr-2 animate-spin" />
+                      Creating Wallet...
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={16} className="mr-2" />
+                      Create Embedded Wallet
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleImportWallet}
+                  className="w-full"
+                >
+                  Import Existing Wallet
+                </Button>
+              </div>
+            )}
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={onClose} className="w-full mt-2">Close</Button>
+          <Button onClick={onClose} className="w-full mt-2">
+            Close
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -83,33 +163,58 @@ const ManageWalletModal = ({ open, onClose, address }: { open: boolean; onClose:
 const Dashboard = () => {
 	const { account, getPlansByCreator, getTrustScore } = useContract();
 	const [userPlans, setUserPlans] = useState<Plan[]>([]);
-  const { address, balance: userBalance, isConnected } = useStacksWallet();
+  const {
+    address,
+    balance: userBalance,
+    isConnected,
+    connectWithPasskey,
+    createWallet,
+    importWallet,
+    hasAccount,
+    isAuthenticated,
+    disconnectWallet,
+  } = useTurnkeyWallet();
+  const [isCreatingWallet, setIsCreatingWallet] = useState(false);
 
 
   const [activeTab, setActiveTab] = useState('overview');
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [trustScore, setTrustScore] = useState(50);
 
+  const handleCreateWallet = useCallback(async () => {
+    try {
+      setIsCreatingWallet(true);
+      await createWallet();
+    } finally {
+      setIsCreatingWallet(false);
+    }
+  }, [createWallet]);
+
   // Mock data usage
   const user = defaultUser;
-  const userAddress = address || "Not Signed In";
+  const userAddress = address ?? "";
 
-	useEffect(() => {
-		const fetchPlans = async () => {
-			if (account) {
-				const response = await getPlansByCreator(account);
+  useEffect(() => {
+    const fetchPlans = async () => {
+      if (!account) {
+        setUserPlans([]);
+        return;
+      }
 
-				const normalizedPlans = response.map((item: any) => item.plan);
+      try {
+        const plans = await getPlansByCreator(account);
+        setUserPlans(plans);
 
-				setUserPlans(normalizedPlans);
+        const score = await getTrustScore(account);
+        setTrustScore(Number(score));
+      } catch (error) {
+        console.error("Failed to load user plans:", error);
+        setUserPlans([]);
+      }
+    };
 
-				const res = await getTrustScore(account);
-				setTrustScore(Number(res))
-			}
-		};
-		
-		fetchPlans();
-	}, [account]);
+    fetchPlans();
+  }, [account, getPlansByCreator, getTrustScore]);
 
 
   // Upcoming payout (mock)
@@ -119,7 +224,16 @@ const Dashboard = () => {
 
   return (
     <>
-      <ManageWalletModal open={showWalletModal} onClose={() => setShowWalletModal(false)} address={userAddress}/>
+      <ManageWalletModal
+        open={showWalletModal}
+        onClose={() => setShowWalletModal(false)}
+        address={userAddress}
+        hasAccount={hasAccount}
+        onCreateWallet={handleCreateWallet}
+        onImportWallet={importWallet}
+        onDisconnect={disconnectWallet}
+        isCreating={isCreatingWallet}
+      />
       <div className="container py-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
@@ -155,10 +269,43 @@ const Dashboard = () => {
                 <div className="w-24 h-24 rounded-full bg-vox-primary/10 flex items-center justify-center mb-6 mx-auto">
                   <Wallet size={48} className="text-vox-primary" />
                 </div>
-                <h2 className="text-xl font-heading font-bold text-center text-vox-secondary mb-2">Sign In to Account</h2>
+                <h2 className="text-xl font-heading font-bold text-center text-vox-secondary mb-2">
+                  {isAuthenticated ? "Create Your Wallet" : "Sign In to Account"}
+                </h2>
                 <p className="text-center text-vox-secondary/70 mb-6 font-sans">
-                  Please sign in to view your dashboard and manage your group.
+                  {isAuthenticated
+                    ? "You are authenticated. Create an embedded wallet to start managing your savings groups."
+                    : "Please sign in to view your dashboard and manage your group."}
                 </p>
+                <div className="space-y-3">
+                  {!isAuthenticated && (
+                    <Button
+                      className="w-full gradient-bg text-white font-sans hover:opacity-90 transition-opacity"
+                      onClick={() => connectWithPasskey()}
+                    >
+                      Sign In with Turnkey
+                    </Button>
+                  )}
+                  {isAuthenticated && !hasAccount && (
+                    <Button
+                      className="w-full gradient-bg text-white font-sans hover:opacity-90 transition-opacity"
+                      onClick={handleCreateWallet}
+                      disabled={isCreatingWallet}
+                    >
+                      {isCreatingWallet ? (
+                        <>
+                          <RefreshCw size={16} className="mr-2 animate-spin" />
+                          Creating Wallet...
+                        </>
+                      ) : (
+                        <>
+                          <Plus size={16} className="mr-2" />
+                          Create Embedded Wallet
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
               </motion.div>
             </motion.div>
           ) : (

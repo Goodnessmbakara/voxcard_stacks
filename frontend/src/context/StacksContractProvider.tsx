@@ -1,11 +1,7 @@
 import { createContext, useContext, ReactNode } from "react";
-import { useTurnkey } from "@turnkey/react-wallet-kit";
 import {
-  makeContractCall,
-  broadcastTransaction,
   AnchorMode,
   PostConditionMode,
-  bufferCVFromString,
   uintCV,
   stringUtf8CV,
   stringAsciiCV,
@@ -16,6 +12,7 @@ import {
 } from "@stacks/transactions";
 import { StacksTestnet, StacksMainnet } from "@stacks/network";
 import { toast } from "@/hooks/use-toast";
+import { useTurnkeyWallet } from "./TurnkeyWalletProvider";
 
 // Contract configuration
 const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS || "";
@@ -62,8 +59,8 @@ interface ContractContextProps {
   account?: string;
   balance?: string;
   createPlan: (plan: CreatePlanInput) => Promise<any>;
-  getPlansByCreator: (creator: string) => Promise<{ plans: Plan[] }>;
-  getPlanById: (planId: number) => Promise<{ plan: Plan | null }>;
+  getPlansByCreator: (creator: string) => Promise<Plan[]>;
+  getPlanById: (planId: number) => Promise<Plan | null>;
   getPaginatedPlans: (page: number, pageSize: number) => Promise<{ plans: Plan[]; totalCount: number }>;
   requestJoinPlan: (planId: number) => Promise<any>;
   approveJoinRequest: (planId: number, requester: string) => Promise<any>;
@@ -76,9 +73,131 @@ interface ContractContextProps {
 
 const ContractContext = createContext<ContractContextProps | null>(null);
 
+const MICROSTX_PER_STX = 1_000_000;
+
+function clarityToNative(cv: any): any {
+  if (cv === null || cv === undefined) {
+    return cv;
+  }
+  if (typeof cv !== "object" || !("type" in cv)) {
+    return cv;
+  }
+
+  switch (cv.type) {
+    case "uint":
+    case "int":
+      return Number(cv.value);
+    case "bool":
+      return Boolean(cv.value);
+    case "string-utf8":
+    case "string-ascii":
+    case "principal":
+      return cv.value;
+    case "buffer":
+      return cv.value;
+    case "list":
+      return (cv.value ?? []).map(clarityToNative);
+    case "optional":
+      return cv.value == null ? null : clarityToNative(cv.value);
+    case "tuple": {
+      const obj: Record<string, unknown> = {};
+      Object.entries(cv.value ?? {}).forEach(([key, val]) => {
+        obj[key] = clarityToNative(val);
+      });
+      return obj;
+    }
+    case "response":
+      return {
+        ok: cv.success,
+        value: cv.success ? clarityToNative(cv.value) : null,
+        error: cv.success ? null : clarityToNative(cv.value),
+      };
+    default:
+      return cv.value ?? cv;
+  }
+}
+
+function ensureArray<T = any>(value: T | T[] | Record<string, T> | null | undefined): T[] {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (value === null || value === undefined) {
+    return [];
+  }
+  if (typeof value === "object") {
+    return Object.values(value);
+  }
+  return [value];
+}
+
+function normalizePlan(rawPlan: any): Plan | null {
+  if (!rawPlan || typeof rawPlan !== "object") {
+    return null;
+  }
+
+  const getField = (keys: string[], fallback?: any) => {
+    for (const key of keys) {
+      if (rawPlan[key] !== undefined) {
+        return rawPlan[key];
+      }
+    }
+    return fallback;
+  };
+
+  const idValue = getField(["plan-id", "plan_id", "id"]);
+  if (idValue === undefined || idValue === null) {
+    return null;
+  }
+
+  const contributionMicro =
+    getField(["contribution-amount", "contribution_amount", "contributionAmount"], 0) ?? 0;
+
+  const contributionStx =
+    typeof contributionMicro === "number"
+      ? (contributionMicro / MICROSTX_PER_STX).toString()
+      : String(contributionMicro ?? "0");
+
+  const participants = ensureArray(getField(["participants"], [])).map((participant) =>
+    String(participant),
+  );
+  const joinRequests = ensureArray(getField(["join-requests", "join_requests"], [])).map(
+    (request) => String(request),
+  );
+
+  const createdAtRaw = getField(["created-at", "created_at", "createdAt"], 0);
+
+  return {
+    id: String(idValue),
+    name: getField(["name", "plan-name", "plan_name"], ""),
+    description: getField(["description", "plan-description", "plan_description"], ""),
+    creator: getField(["creator", "creator-address", "creator_address"], ""),
+    total_participants: Number(
+      getField(["total-participants", "total_participants", "participantCount"], 0),
+    ),
+    contribution_amount: contributionStx,
+    frequency: getField(["frequency"], ""),
+    duration_months: Number(
+      getField(["duration-months", "duration_months", "durationMonths"], 0),
+    ),
+    trust_score_required: Number(
+      getField(["trust-score-required", "trust_score_required", "trustScoreRequired"], 0),
+    ),
+    allow_partial: Boolean(
+      getField(["allow-partial", "allow_partial", "allowPartial"], false),
+    ),
+    participants,
+    join_requests: joinRequests,
+    created_at: Number(createdAtRaw ?? 0),
+  };
+}
+
 export const StacksContractProvider = ({ children }: { children: ReactNode }) => {
-  const { address, authState } = useTurnkey();
-  const isConnected = authState === 'AUTHENTICATED';
+  const {
+    isConnected,
+    address,
+    balance,
+    signAndBroadcastTransaction,
+  } = useTurnkeyWallet();
 
   // Helper function to make contract calls with embedded wallet
   const makeContractCallWithEmbeddedWallet = async (txOptions: any) => {
@@ -87,24 +206,13 @@ export const StacksContractProvider = ({ children }: { children: ReactNode }) =>
     }
 
     try {
-      // Build the transaction
-      const transaction = await makeContractCall({
+      const txid = await signAndBroadcastTransaction({
         ...txOptions,
         network,
         anchorMode: txOptions.anchorMode || AnchorMode.Any,
         postConditionMode: txOptions.postConditionMode || PostConditionMode.Allow,
       });
-
-      // For now, we'll use the traditional broadcast method
-      // In a full implementation, this would use Turnkey's signing
-      const result = await broadcastTransaction(transaction, network);
-      
-      toast({
-        title: "Transaction Submitted",
-        description: `Transaction ID: ${result.txid}`,
-      });
-
-      return result;
+      return { txid };
     } catch (error: any) {
       console.error("Transaction error:", error);
       toast({
@@ -162,11 +270,25 @@ export const StacksContractProvider = ({ children }: { children: ReactNode }) =>
         senderAddress: address!,
       });
 
-      const plans = cvToJSON(result).value;
-      return { plans };
+      const native = clarityToNative(cvToJSON(result));
+      const payload =
+        native && typeof native === "object" && "ok" in native
+          ? native.ok
+            ? native.value
+            : []
+          : native;
+
+      const plansSource =
+        payload && typeof payload === "object" && "plans" in payload ? payload.plans : payload;
+
+      const plans = ensureArray(plansSource)
+        .map((plan) => normalizePlan(plan))
+        .filter(Boolean) as Plan[];
+
+      return plans;
     } catch (error) {
       console.error("Error fetching plans by creator:", error);
-      return { plans: [] };
+      return [];
     }
   };
 
@@ -185,20 +307,19 @@ export const StacksContractProvider = ({ children }: { children: ReactNode }) =>
         senderAddress: address!,
       });
 
-      const response = cvToJSON(result);
-      console.log('getPlanById response for plan', planId, ':', response);
-      
-      // The contract returns (ok (map-get? plans { plan-id: plan-id }))
-      // So we need to check if the result is okay and has a value
-      if (response.okay && response.value) {
-        return { plan: response.value };
-      } else {
-        console.log('Plan not found or no value for plan', planId);
-        return { plan: null };
-      }
+      const native = clarityToNative(cvToJSON(result));
+      const payload =
+        native && typeof native === "object" && "ok" in native
+          ? native.ok
+            ? native.value
+            : null
+          : native;
+
+      const plan = normalizePlan(payload);
+      return plan ?? null;
     } catch (error) {
       console.error("Error fetching plan:", error);
-      return { plan: null };
+      return null;
     }
   };
 
@@ -218,24 +339,25 @@ export const StacksContractProvider = ({ children }: { children: ReactNode }) =>
         senderAddress: address!,
       });
 
-      const countResponse = cvToJSON(countResult);
-      console.log('Plan count response:', countResponse);
-      
-      const totalCount = countResponse.okay ? Number(countResponse.value) : 0;
-      console.log('Total plan count:', totalCount);
+      const countNative = clarityToNative(cvToJSON(countResult));
+      const totalCount =
+        typeof countNative === "number"
+          ? countNative
+          : typeof countNative?.value === "number"
+          ? countNative.value
+          : 0;
 
       const start = (page - 1) * pageSize + 1;
       const end = Math.min(start + pageSize - 1, totalCount);
 
       const plans = [];
       for (let i = start; i <= end; i++) {
-        const planRes = await getPlanById(i);
-        if (planRes?.plan) {
-          plans.push(planRes.plan);
+        const plan = await getPlanById(i);
+        if (plan) {
+          plans.push(plan);
         }
       }
 
-      console.log('Final plans array:', plans);
       return { plans, totalCount };
     } catch (error) {
       console.error("Error fetching paginated plans:", error);
@@ -392,7 +514,7 @@ export const StacksContractProvider = ({ children }: { children: ReactNode }) =>
   return (
     <ContractContext.Provider
       value={{
-        address: contractAddress,
+        address: address || "",
         account: address || undefined,
         balance: balance || undefined,
         createPlan,
@@ -420,4 +542,3 @@ export const useContract = () => {
   }
   return ctx;
 };
-

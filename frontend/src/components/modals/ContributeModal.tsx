@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Plan } from "@/types/utils";
 import { Coins } from "lucide-react";
-import { useStacksWallet } from "@/context/StacksWalletProvider";
+import { useTurnkeyWallet } from "@/context/TurnkeyWalletProvider";
 import { useContract } from "@/context/StacksContractProvider";
 import type { ParticipantCycleStatus } from "@/types/utils";
 
@@ -29,7 +29,7 @@ interface ContributeModalProps {
 
 const ContributeModal = ({ plan, cycleStatus, open, onClose, onSuccess }: ContributeModalProps) => {
   const { toast } = useToast();
-  const { address } = useStacksWallet();
+  const { address } = useTurnkeyWallet();
   const { contribute } = useContract();
 
   const defaultAmount = String(cycleStatus?.remaining_this_cycle);
@@ -73,7 +73,7 @@ const ContributeModal = ({ plan, cycleStatus, open, onClose, onSuccess }: Contri
       const res = await contribute(Number(plan.id), amountMicroSTX);
       toast({
         title: "Contribution submitted",
-        description: `Tx: ${res.txId || 'pending'}`,
+        description: `Tx: ${res?.txid || res || "pending"}`,
       });
 	  onSuccess();
       onClose();
