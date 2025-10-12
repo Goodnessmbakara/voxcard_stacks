@@ -8,7 +8,7 @@ const { makeContractDeploy, broadcastTransaction, AnchorMode } = transactionsPkg
 const contractCode = readFileSync('./contracts/voxcard-savings.clar', 'utf8');
 
 // Deployment configuration
-const contractName = 'voxcard-savings-v3';
+const contractName = 'voxcard-savings-v4';
 const network = STACKS_TESTNET;
 const senderAddress = 'ST240V2R09J62PD2KDMJ5Z5X85VAB4VNJ9NZ6XBS1';
 const privateKey = '8360233f8b5177477bb7f3205fa9ad650d73a898f685e278882a073a221dd85101';

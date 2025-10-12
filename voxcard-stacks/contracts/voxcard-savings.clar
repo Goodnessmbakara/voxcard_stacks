@@ -716,18 +716,24 @@
 ;; Get join requests for a plan
 (define-read-only (get-join-requests (plan-id uint))
     (let (
-        (request-list (unwrap! (map-get? plan-join-request-list { plan-id: plan-id }) err-plan-not-found))
+        (request-list (map-get? plan-join-request-list { plan-id: plan-id }))
     )
-        (ok (get requests request-list))
+        (ok (if (is-some request-list)
+            (get requests (unwrap-panic request-list))
+            (list)
+        ))
     )
 )
 
 ;; Get participants for a plan
 (define-read-only (get-plan-participants (plan-id uint))
     (let (
-        (participant-list (unwrap! (map-get? plan-participant-list { plan-id: plan-id }) err-plan-not-found))
+        (participant-list (map-get? plan-participant-list { plan-id: plan-id }))
     )
-        (ok (get participants participant-list))
+        (ok (if (is-some participant-list)
+            (get participants (unwrap-panic participant-list))
+            (list)
+        ))
     )
 )
 

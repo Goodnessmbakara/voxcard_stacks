@@ -151,7 +151,7 @@ function normalizePlan(rawPlan: any, planId?: number): Plan | null {
   };
 
   // Use the planId parameter if provided, otherwise try to extract from data
-  const idValue = planId || getField(["plan-id", "plan_id", "id"]);
+  const idValue = planId || getField(["plan-id"]);
   if (idValue === undefined || idValue === null) {
     console.log('🔧 DEBUG - normalizePlan: No valid ID found');
     return null;
@@ -160,7 +160,7 @@ function normalizePlan(rawPlan: any, planId?: number): Plan | null {
   console.log('🔧 DEBUG - normalizePlan: Using plan ID:', idValue);
 
   const contributionMicro =
-    getField(["contribution-amount", "contribution_amount", "contributionAmount"], 0) ?? 0;
+    getField(["contribution-amount"], 0) ?? 0;
 
   const contributionStx =
     typeof contributionMicro === "number"
@@ -170,30 +170,30 @@ function normalizePlan(rawPlan: any, planId?: number): Plan | null {
   const participants = ensureArray(getField(["participants"], [])).map((participant) =>
     String(participant),
   );
-  const joinRequests = ensureArray(getField(["join-requests", "join_requests"], [])).map(
+  const joinRequests = ensureArray(getField(["joinRequests"], [])).map(
     (request) => String(request),
   );
 
-  const createdAtRaw = getField(["created-at", "created_at", "createdAt"], 0);
+  const createdAtRaw = getField(["created-at"], 0);
 
   const normalizedPlan = {
     id: String(idValue),
-    name: getField(["name", "plan-name", "plan_name"], ""),
-    description: getField(["description", "plan-description", "plan_description"], ""),
-    creator: getField(["creator", "creator-address", "creator_address"], ""),
+    name: getField(["name"], ""),
+    description: getField(["description"], ""),
+    creator: getField(["creator"], ""),
     total_participants: Number(
-      getField(["total-participants", "total_participants", "participantCount"], 0),
+      getField(["total-participants"], 0),
     ),
     contribution_amount: contributionStx,
     frequency: getField(["frequency"], ""),
     duration_months: Number(
-      getField(["duration-months", "duration_months", "durationMonths"], 0),
+      getField(["duration-months"], 0),
     ),
     trust_score_required: Number(
-      getField(["trust-score-required", "trust_score_required", "trustScoreRequired"], 0),
+      getField(["trust-score-required"], 0),
     ),
     allow_partial: Boolean(
-      getField(["allow-partial", "allow_partial", "allowPartial"], false),
+      getField(["allow-partial"], false),
     ),
     participants,
     join_requests: joinRequests,
@@ -405,7 +405,9 @@ export const StacksContractProvider = ({ children }: { children: ReactNode }) =>
 
     try {
       console.log(`🔍 DEBUG - Fetching plan ID: ${planId}`);
-      const result = await callReadOnlyFunction({
+      
+      // Fetch plan data
+      const planResult = await callReadOnlyFunction({
         contractAddress,
         contractName,
         functionName: "get-plan",
@@ -414,34 +416,116 @@ export const StacksContractProvider = ({ children }: { children: ReactNode }) =>
         senderAddress: contractAddress,
       });
 
-      console.log(`🔍 DEBUG - Raw plan result for ID ${planId}:`, result);
-      const native = clarityToNative(cvToJSON(result));
-      console.log(`🔍 DEBUG - Native plan result for ID ${planId}:`, native);
+      console.log(`🔍 DEBUG - Raw plan result for ID ${planId}:`, planResult);
+      const planNative = clarityToNative(cvToJSON(planResult));
+      console.log(`🔍 DEBUG - Native plan result for ID ${planId}:`, planNative);
       
       // Handle the Response type from contract
-      let payload = null;
-      if (native && typeof native === "object" && "ok" in native) {
-        if (native.ok && native.value !== null && native.value !== undefined) {
+      let planPayload = null;
+      if (planNative && typeof planNative === "object" && "ok" in planNative) {
+        if (planNative.ok && planNative.value !== null && planNative.value !== undefined) {
           // Check if the value is wrapped in another optional
-          if (native.value && typeof native.value === "object" && "value" in native.value) {
-            payload = native.value.value;
+          if (planNative.value && typeof planNative.value === "object" && "value" in planNative.value) {
+            planPayload = planNative.value.value;
           } else {
-            payload = native.value;
+            planPayload = planNative.value;
           }
         }
-      } else if (native && native !== null) {
-        payload = native;
+      } else if (planNative && planNative !== null) {
+        planPayload = planNative;
       }
 
-      console.log(`🔍 DEBUG - Plan payload for ID ${planId}:`, payload);
+      console.log(`🔍 DEBUG - Plan payload for ID ${planId}:`, planPayload);
       
       // Check if payload is null/undefined (plan doesn't exist)
-      if (payload === null || payload === undefined) {
+      if (planPayload === null || planPayload === undefined) {
         console.log(`🔍 DEBUG - Plan ${planId} does not exist`);
         return null;
       }
+
+      // Fetch participants
+      let participants = [];
+      try {
+        const participantsResult = await callReadOnlyFunction({
+          contractAddress,
+          contractName,
+          functionName: "get-plan-participants",
+          functionArgs: [uintCV(planId)],
+          network,
+          senderAddress: contractAddress,
+        });
+        
+        const participantsNative = clarityToNative(cvToJSON(participantsResult));
+        console.log(`🔍 DEBUG - Participants result for ID ${planId}:`, participantsNative);
+        
+        if (participantsNative && typeof participantsNative === "object" && "ok" in participantsNative) {
+          if (participantsNative.ok && participantsNative.value) {
+            // Handle the case where the value might be wrapped in another object
+            if (typeof participantsNative.value === "object" && "value" in participantsNative.value) {
+              participants = participantsNative.value.value || [];
+            } else {
+              participants = participantsNative.value || [];
+            }
+          } else {
+            participants = [];
+          }
+        } else {
+          participants = participantsNative || [];
+        }
+      } catch (error) {
+        console.warn(`⚠️ Failed to fetch participants for plan ${planId}:`, error);
+      }
+
+      // Fetch join requests
+      let joinRequests = [];
+      try {
+        const joinRequestsResult = await callReadOnlyFunction({
+          contractAddress,
+          contractName,
+          functionName: "get-join-requests",
+          functionArgs: [uintCV(planId)],
+          network,
+          senderAddress: contractAddress,
+        });
+        
+        const joinRequestsNative = clarityToNative(cvToJSON(joinRequestsResult));
+        console.log(`🔍 DEBUG - Join requests result for ID ${planId}:`, joinRequestsNative);
+        
+        if (joinRequestsNative && typeof joinRequestsNative === "object" && "ok" in joinRequestsNative) {
+          if (joinRequestsNative.ok && joinRequestsNative.value) {
+            // Handle the case where the value might be wrapped in another object
+            if (typeof joinRequestsNative.value === "object" && "value" in joinRequestsNative.value) {
+              joinRequests = joinRequestsNative.value.value || [];
+            } else {
+              joinRequests = joinRequestsNative.value || [];
+            }
+          } else {
+            joinRequests = [];
+          }
+        } else {
+          joinRequests = joinRequestsNative || [];
+        }
+      } catch (error) {
+        console.warn(`⚠️ Failed to fetch join requests for plan ${planId}:`, error);
+      }
+
+      // Ensure participants and joinRequests are arrays before mapping
+      const safeParticipants = Array.isArray(participants) ? participants : [];
+      const safeJoinRequests = Array.isArray(joinRequests) ? joinRequests : [];
+
+      console.log(`🔍 DEBUG - Safe participants for ID ${planId}:`, safeParticipants);
+      console.log(`🔍 DEBUG - Safe join requests for ID ${planId}:`, safeJoinRequests);
+
+      // Add participants and join requests to the plan payload
+      const enrichedPayload = {
+        ...planPayload,
+        participants: safeParticipants.map(p => String(p)),
+        joinRequests: safeJoinRequests.map(r => String(r))
+      };
+
+      console.log(`🔍 DEBUG - Enriched payload for ID ${planId}:`, enrichedPayload);
       
-      const plan = normalizePlan(payload, planId);
+      const plan = normalizePlan(enrichedPayload, planId);
       console.log(`🔍 DEBUG - Normalized plan for ID ${planId}:`, plan);
       return plan ?? null;
     } catch (error) {

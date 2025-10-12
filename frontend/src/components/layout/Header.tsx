@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu, LogOut, User } from "lucide-react";
 import { useTurnkey, AuthState } from "@turnkey/react-wallet-kit";
+import { useTurnkeyWallet } from "@/context/TurnkeyWalletProvider";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +16,7 @@ import {
 
 export const Header = () => {
 	const { handleLogin, authState, user } = useTurnkey();
+  const { disconnectWallet } = useTurnkeyWallet();
   const isAuthenticated = authState === AuthState.Authenticated;
 
 
@@ -80,6 +82,13 @@ export const Header = () => {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={() => disconnectWallet()}
+                    className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Disconnect
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
@@ -140,6 +149,14 @@ export const Header = () => {
                           </div>
                           <p className="text-xs text-gray-500">Authenticated</p>
                         </div>
+                        <Button 
+                          onClick={() => disconnectWallet()} 
+                          variant="outline" 
+                          className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                        >
+                          <LogOut className="mr-2 h-4 w-4" />
+                          Disconnect
+                        </Button>
                       </div>
                     ) : (
                       <Button onClick={() => handleLogin()} className="w-full gradient-bg text-white">

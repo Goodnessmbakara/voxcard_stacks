@@ -30,7 +30,7 @@ export const WalletTest = () => {
       // Test with a real group creation
       const testTxOptions = {
         contractAddress: "ST240V2R09J62PD2KDMJ5Z5X85VAB4VNJ9NZ6XBS1",
-        contractName: "voxcard-savings-v3",
+        contractName: "voxcard-savings",
         functionName: "create-plan",
         functionArgs: [
           {
