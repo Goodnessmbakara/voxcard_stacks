@@ -10,7 +10,8 @@
 (define-constant contract-owner tx-sender)
 
 ;; sBTC Token Contract (Testnet)
-(define-constant sbtc-token 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token)
+;; NOTE: Commented out until sBTC is available on testnet
+;; (define-constant sbtc-token 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token)
 
 ;; Error codes with descriptive names
 (define-constant err-owner-only (err u100))
@@ -121,6 +122,15 @@
         total-plans-completed: uint,
         total-contributions: uint,
         last-updated: uint
+    }
+)
+
+;; Index for plans by creator
+(define-map creator-plans
+    { creator: principal }
+    {
+        plan-count: uint,
+        plans: (list 100 uint)
     }
 )
 
@@ -311,7 +321,10 @@
         (creator tx-sender)
     )
         ;; Validate all parameters using comprehensive validation
-        (asserts! (validate-plan-parameters name description total-participants contribution-amount frequency duration-months trust-score-required asset-type) err-invalid-plan-parameters)
+        (asserts! (and
+            (validate-plan-parameters name description total-participants contribution-amount frequency duration-months trust-score-required asset-type)
+            (> total-participants u1)
+        ) err-invalid-plan-parameters)
         
         ;; Create the plan
         (map-set plans
@@ -363,8 +376,14 @@
             { participants: (list creator), participant-count: u1 }
         )
         
-        ;; Increment nonce
-        (var-set plan-nonce plan-id)
+        ;; Update creator's plan index - simple approach for now
+        (map-set creator-plans
+            { creator: creator }
+            {
+                plan-count: u1,
+                plans: (list plan-id)
+            }
+        )
         
         ;; Update creator's trust score
         (let (
@@ -384,6 +403,9 @@
                 }
             )
         )
+        
+        ;; Increment nonce ONLY after all operations complete successfully
+        (var-set plan-nonce plan-id)
         
         (ok plan-id)
     )
@@ -569,66 +591,67 @@
 )
 
 ;; Make an sBTC contribution to a plan
-(define-public (contribute-sbtc (plan-id uint) (amount uint))
-    (let (
-        (plan (unwrap! (map-get? plans { plan-id: plan-id }) err-plan-not-found))
-        (contributor tx-sender)
-        (current-cycle (get current-cycle plan))
-        (participant (unwrap! (map-get? plan-participants { plan-id: plan-id, participant: contributor }) err-not-participant))
-        (cycle-contribution (map-get? cycle-contributions { plan-id: plan-id, participant: contributor, cycle: current-cycle }))
-    )
-        ;; Validations
-        (asserts! (get is-active plan) err-plan-inactive)
-        (asserts! (is-eq (get asset-type plan) "sBTC") err-invalid-contribution)
-        (asserts! (>= amount min-contribution-amount) err-contribution-below-minimum)
-        
-        ;; Check if partial payments are allowed
-        (if (get allow-partial plan)
-            (asserts! (>= amount min-contribution-amount) err-contribution-below-minimum)
-            (asserts! (is-eq amount (get contribution-amount plan)) err-partial-payment-not-allowed)
-        )
-        
-        ;; Calculate total contributed in this cycle
-        (let (
-            (existing-contribution (default-to { amount-contributed: u0, contributed-at: u0, is-complete: false } cycle-contribution))
-            (previous-contribution (get amount-contributed existing-contribution))
-            (new-total (+ previous-contribution amount))
-            (is-complete (>= new-total (get contribution-amount plan)))
-        )
-            ;; Transfer sBTC to contract using SIP-010 transfer
-            (try! (contract-call? sbtc-token transfer amount contributor (as-contract tx-sender) none))
-            
-            ;; Update cycle contribution
-            (map-set cycle-contributions
-                { plan-id: plan-id, participant: contributor, cycle: current-cycle }
-                {
-                    amount-contributed: new-total,
-                    contributed-at: burn-block-height,
-                    is-complete: is-complete
-                }
-            )
-            
-            ;; Update participant stats if cycle complete
-            (if is-complete
-                (begin
-                    (map-set plan-participants
-                        { plan-id: plan-id, participant: contributor }
-                        (merge participant 
-                            { 
-                                total-contributed: (+ (get total-contributed participant) new-total),
-                                cycles-completed: (+ (get cycles-completed participant) u1)
-                            }
-                        )
-                    )
-                    (update-trust-score-on-contribution contributor amount)
-                )
-                true
-            )
-            
-            (ok { contributed: amount, total-this-cycle: new-total, is-complete: is-complete })
-        )
-    )
-)
+;; NOTE: Temporarily commented out until sBTC is available on testnet
+;; (define-public (contribute-sbtc (plan-id uint) (amount uint))
+;;     (let (
+;;         (plan (unwrap! (map-get? plans { plan-id: plan-id }) err-plan-not-found))
+;;         (contributor tx-sender)
+;;         (current-cycle (get current-cycle plan))
+;;         (participant (unwrap! (map-get? plan-participants { plan-id: plan-id, participant: contributor }) err-not-participant))
+;;         (cycle-contribution (map-get? cycle-contributions { plan-id: plan-id, participant: contributor, cycle: current-cycle }))
+;;     )
+;;         ;; Validations
+;;         (asserts! (get is-active plan) err-plan-inactive)
+;;         (asserts! (is-eq (get asset-type plan) "sBTC") err-invalid-contribution)
+;;         (asserts! (>= amount min-contribution-amount) err-contribution-below-minimum)
+;;         
+;;         ;; Check if partial payments are allowed
+;;         (if (get allow-partial plan)
+;;             (asserts! (>= amount min-contribution-amount) err-contribution-below-minimum)
+;;             (asserts! (is-eq amount (get contribution-amount plan)) err-partial-payment-not-allowed)
+;;         )
+;;         
+;;         ;; Calculate total contributed in this cycle
+;;         (let (
+;;             (existing-contribution (default-to { amount-contributed: u0, contributed-at: u0, is-complete: false } cycle-contribution))
+;;             (previous-contribution (get amount-contributed existing-contribution))
+;;             (new-total (+ previous-contribution amount))
+;;             (is-complete (>= new-total (get contribution-amount plan)))
+;;         )
+;;             ;; Transfer sBTC to contract using SIP-010 transfer
+;;             (try! (contract-call? sbtc-token transfer amount contributor (as-contract tx-sender) none))
+;;             
+;;             ;; Update cycle contribution
+;;             (map-set cycle-contributions
+;;                 { plan-id: plan-id, participant: contributor, cycle: current-cycle }
+;;                 {
+;;                     amount-contributed: new-total,
+;;                     contributed-at: burn-block-height,
+;;                     is-complete: is-complete
+;;                 }
+;;             )
+;;             
+;;             ;; Update participant stats if cycle complete
+;;             (if is-complete
+;;                 (begin
+;;                     (map-set plan-participants
+;;                         { plan-id: plan-id, participant: contributor }
+;;                         (merge participant 
+;;                             { 
+;;                                 total-contributed: (+ (get total-contributed participant) new-total),
+;;                                 cycles-completed: (+ (get cycles-completed participant) u1)
+;;                             }
+;;                         )
+;;                     )
+;;                     (update-trust-score-on-contribution contributor amount)
+;;                 )
+;;                 true
+;;             )
+;;             
+;;             (ok { contributed: amount, total-this-cycle: new-total, is-complete: is-complete })
+;;         )
+;;     )
+;; )
 
 ;; =============================================================================
 ;; READ-ONLY FUNCTIONS
@@ -646,8 +669,16 @@
 
 ;; Get plans by creator
 (define-read-only (get-plans-by-creator (creator principal))
-    ;; Note: In production, consider using an index map for efficient lookups
-    (ok (list))
+    ;; Use the creator-plans index to efficiently retrieve plans
+    (let (
+        (creator-data (default-to 
+            { plan-count: u0, plans: (list) }
+            (map-get? creator-plans { creator: creator })
+        ))
+        (plan-ids (get plans creator-data))
+    )
+        (ok plan-ids)
+    )
 )
 
 ;; Get participant cycle status

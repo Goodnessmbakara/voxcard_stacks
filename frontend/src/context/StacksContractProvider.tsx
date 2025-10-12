@@ -130,24 +130,34 @@ function ensureArray<T = any>(value: T | T[] | Record<string, T> | null | undefi
   return [value];
 }
 
-function normalizePlan(rawPlan: any): Plan | null {
+function normalizePlan(rawPlan: any, planId?: number): Plan | null {
   if (!rawPlan || typeof rawPlan !== "object") {
+    console.log('🔧 DEBUG - normalizePlan: Invalid rawPlan:', rawPlan);
     return null;
   }
+
+  console.log('🔧 DEBUG - normalizePlan: Processing plan data:', rawPlan);
+  console.log('🔧 DEBUG - normalizePlan: Available keys:', Object.keys(rawPlan));
 
   const getField = (keys: string[], fallback?: any) => {
     for (const key of keys) {
       if (rawPlan[key] !== undefined) {
+        console.log(`🔧 DEBUG - normalizePlan: Found field '${key}':`, rawPlan[key]);
         return rawPlan[key];
       }
     }
+    console.log(`🔧 DEBUG - normalizePlan: No field found for keys:`, keys);
     return fallback;
   };
 
-  const idValue = getField(["plan-id", "plan_id", "id"]);
+  // Use the planId parameter if provided, otherwise try to extract from data
+  const idValue = planId || getField(["plan-id", "plan_id", "id"]);
   if (idValue === undefined || idValue === null) {
+    console.log('🔧 DEBUG - normalizePlan: No valid ID found');
     return null;
   }
+
+  console.log('🔧 DEBUG - normalizePlan: Using plan ID:', idValue);
 
   const contributionMicro =
     getField(["contribution-amount", "contribution_amount", "contributionAmount"], 0) ?? 0;
@@ -166,7 +176,7 @@ function normalizePlan(rawPlan: any): Plan | null {
 
   const createdAtRaw = getField(["created-at", "created_at", "createdAt"], 0);
 
-  return {
+  const normalizedPlan = {
     id: String(idValue),
     name: getField(["name", "plan-name", "plan_name"], ""),
     description: getField(["description", "plan-description", "plan_description"], ""),
@@ -189,6 +199,9 @@ function normalizePlan(rawPlan: any): Plan | null {
     join_requests: joinRequests,
     created_at: Number(createdAtRaw ?? 0),
   };
+
+  console.log('🔧 DEBUG - normalizePlan: Final normalized plan:', normalizedPlan);
+  return normalizedPlan;
 }
 
 export const StacksContractProvider = ({ children }: { children: ReactNode }) => {
@@ -199,6 +212,25 @@ export const StacksContractProvider = ({ children }: { children: ReactNode }) =>
     signAndBroadcastTransaction,
   } = useTurnkeyWallet();
 
+  // Rate limiting protection
+  const apiCallDelays = new Map<string, number>();
+  const RATE_LIMIT_DELAY = 2000; // 2 seconds between calls
+
+  const rateLimitedCall = async (key: string, fn: () => Promise<any>) => {
+    const lastCall = apiCallDelays.get(key) || 0;
+    const now = Date.now();
+    const timeSinceLastCall = now - lastCall;
+    
+    if (timeSinceLastCall < RATE_LIMIT_DELAY) {
+      const delay = RATE_LIMIT_DELAY - timeSinceLastCall;
+      console.log(`Rate limiting: waiting ${delay}ms before ${key}`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+    
+    apiCallDelays.set(key, Date.now());
+    return fn();
+  };
+
   // Helper function to make contract calls with embedded wallet
   const makeContractCallWithEmbeddedWallet = async (txOptions: any) => {
     if (!isConnected || !address) {
@@ -206,12 +238,30 @@ export const StacksContractProvider = ({ children }: { children: ReactNode }) =>
     }
 
     try {
+      console.log('🚀 Broadcasting transaction with options:', txOptions);
       const txid = await signAndBroadcastTransaction({
         ...txOptions,
         network,
         anchorMode: txOptions.anchorMode || AnchorMode.Any,
         postConditionMode: txOptions.postConditionMode || PostConditionMode.Allow,
       });
+      console.log('✅ Transaction broadcasted successfully:', txid);
+      
+      // Wait a moment and check transaction status
+      setTimeout(async () => {
+        try {
+          const txStatus = await fetch(`https://api.testnet.hiro.so/v2/transactions/${txid}`);
+          if (txStatus.ok) {
+            const txData = await txStatus.json();
+            console.log('📊 Transaction status:', txData);
+          } else {
+            console.log(`⚠️ Transaction status check failed: ${txStatus.status} ${txStatus.statusText}`);
+          }
+        } catch (statusError) {
+          console.log('⚠️ Could not fetch transaction status:', statusError);
+        }
+      }, 5000);
+      
       return { txid };
     } catch (error: any) {
       console.error("Transaction error:", error);
@@ -229,8 +279,36 @@ export const StacksContractProvider = ({ children }: { children: ReactNode }) =>
       throw new Error("Embedded wallet not connected");
     }
 
+    console.log('🚀 Creating plan with data:', plan);
+
     // Convert STX to microSTX (1 STX = 1,000,000 microSTX)
     const contributionAmountMicroSTX = Math.floor(parseFloat(plan.contribution_amount) * 1_000_000);
+    
+    console.log('📊 Converted contribution amount:', {
+      original: plan.contribution_amount,
+      microSTX: contributionAmountMicroSTX,
+      meetsMinimum: contributionAmountMicroSTX >= 100 // min-contribution-amount is u100
+    });
+
+    // Validate inputs before sending
+    if (!plan.name || plan.name.trim() === '') {
+      throw new Error("Plan name is required");
+    }
+    if (!plan.description || plan.description.trim() === '') {
+      throw new Error("Plan description is required");
+    }
+    if (plan.total_participants < 2) {
+      throw new Error("Plan must have at least 2 participants");
+    }
+    if (contributionAmountMicroSTX < 100) {
+      throw new Error("Contribution amount must be at least 0.0001 STX");
+    }
+    if (!plan.frequency || !['Daily', 'Weekly', 'Biweekly', 'Monthly'].includes(plan.frequency)) {
+      throw new Error("Invalid frequency");
+    }
+    if (plan.duration_months < 1 || plan.duration_months > 24) {
+      throw new Error("Duration must be between 1 and 24 months");
+    }
 
     const txOptions = {
       contractAddress,
@@ -247,12 +325,22 @@ export const StacksContractProvider = ({ children }: { children: ReactNode }) =>
         boolCV(plan.allow_partial),
         stringAsciiCV("STX"), // Default asset type
       ],
+      fee: 1000000n, // Increased fee for better transaction processing
       network,
       anchorMode: AnchorMode.Any,
       postConditionMode: PostConditionMode.Allow,
     };
 
-    return await makeContractCallWithEmbeddedWallet(txOptions);
+    console.log('📝 Transaction options:', txOptions);
+
+    try {
+      const result = await makeContractCallWithEmbeddedWallet(txOptions);
+      console.log('✅ Plan creation transaction result:', result);
+      return result;
+    } catch (error: any) {
+      console.error('❌ Plan creation failed:', error);
+      throw error;
+    }
   };
 
   const getPlansByCreator = async (creator: string) => {
@@ -261,31 +349,49 @@ export const StacksContractProvider = ({ children }: { children: ReactNode }) =>
     }
 
     try {
-      const result = await callReadOnlyFunction({
-        contractAddress,
-        contractName,
-        functionName: "get-plans-by-creator",
-        functionArgs: [principalCV(creator)],
-        network,
-        senderAddress: address!,
-      });
+      return await rateLimitedCall('getPlansByCreator', async () => {
+        const result = await callReadOnlyFunction({
+          contractAddress,
+          contractName,
+          functionName: "get-plans-by-creator",
+          functionArgs: [principalCV(creator)],
+          network,
+          senderAddress: contractAddress,
+        });
 
-      const native = clarityToNative(cvToJSON(result));
-      const payload =
-        native && typeof native === "object" && "ok" in native
+        const native = clarityToNative(cvToJSON(result));
+        const planIds = native && typeof native === "object" && "ok" in native
           ? native.ok
             ? native.value
             : []
           : native;
 
-      const plansSource =
-        payload && typeof payload === "object" && "plans" in payload ? payload.plans : payload;
+        console.log('🔍 DEBUG - Raw planIds from contract:', planIds);
+        console.log('🔍 DEBUG - planIds type:', typeof planIds);
+        console.log('🔍 DEBUG - planIds array:', Array.isArray(planIds));
 
-      const plans = ensureArray(plansSource)
-        .map((plan) => normalizePlan(plan))
-        .filter(Boolean) as Plan[];
+        // Convert plan IDs to actual plan objects
+        const plans: Plan[] = [];
+        for (const planId of ensureArray(planIds)) {
+          try {
+            // Ensure planId is a valid integer
+            const planIdNum = parseInt(String(planId), 10);
+            if (isNaN(planIdNum) || planIdNum <= 0) {
+              console.warn(`Invalid plan ID: ${planId}`);
+              continue;
+            }
+            
+            const plan = await getPlanById(planIdNum);
+            if (plan) {
+              plans.push(plan);
+            }
+          } catch (error) {
+            console.warn(`Failed to fetch plan ${planId}:`, error);
+          }
+        }
 
-      return plans;
+        return plans;
+      });
     } catch (error) {
       console.error("Error fetching plans by creator:", error);
       return [];
@@ -298,27 +404,48 @@ export const StacksContractProvider = ({ children }: { children: ReactNode }) =>
     }
 
     try {
+      console.log(`🔍 DEBUG - Fetching plan ID: ${planId}`);
       const result = await callReadOnlyFunction({
         contractAddress,
         contractName,
         functionName: "get-plan",
         functionArgs: [uintCV(planId)],
         network,
-        senderAddress: address!,
+        senderAddress: contractAddress,
       });
 
+      console.log(`🔍 DEBUG - Raw plan result for ID ${planId}:`, result);
       const native = clarityToNative(cvToJSON(result));
-      const payload =
-        native && typeof native === "object" && "ok" in native
-          ? native.ok
-            ? native.value
-            : null
-          : native;
+      console.log(`🔍 DEBUG - Native plan result for ID ${planId}:`, native);
+      
+      // Handle the Response type from contract
+      let payload = null;
+      if (native && typeof native === "object" && "ok" in native) {
+        if (native.ok && native.value !== null && native.value !== undefined) {
+          // Check if the value is wrapped in another optional
+          if (native.value && typeof native.value === "object" && "value" in native.value) {
+            payload = native.value.value;
+          } else {
+            payload = native.value;
+          }
+        }
+      } else if (native && native !== null) {
+        payload = native;
+      }
 
-      const plan = normalizePlan(payload);
+      console.log(`🔍 DEBUG - Plan payload for ID ${planId}:`, payload);
+      
+      // Check if payload is null/undefined (plan doesn't exist)
+      if (payload === null || payload === undefined) {
+        console.log(`🔍 DEBUG - Plan ${planId} does not exist`);
+        return null;
+      }
+      
+      const plan = normalizePlan(payload, planId);
+      console.log(`🔍 DEBUG - Normalized plan for ID ${planId}:`, plan);
       return plan ?? null;
     } catch (error) {
-      console.error("Error fetching plan:", error);
+      console.error(`❌ Failed to fetch plan ID ${planId}`, error);
       return null;
     }
   };
@@ -336,27 +463,66 @@ export const StacksContractProvider = ({ children }: { children: ReactNode }) =>
         functionName: "get-plan-count",
         functionArgs: [],
         network,
-        senderAddress: address!,
+        senderAddress: contractAddress,
       });
 
       const countNative = clarityToNative(cvToJSON(countResult));
-      const totalCount =
-        typeof countNative === "number"
-          ? countNative
-          : typeof countNative?.value === "number"
-          ? countNative.value
-          : 0;
+      console.log('🔍 DEBUG - Contract address:', contractAddress);
+      console.log('🔍 DEBUG - Contract name:', contractName);
+      console.log('🔍 DEBUG - Raw count result:', countResult);
+      console.log('🔍 DEBUG - Count native:', countNative);
+      
+      // Handle different response formats
+      let totalCount = 0;
+      if (typeof countNative === "number") {
+        totalCount = countNative;
+      } else if (countNative && typeof countNative === "object") {
+        // Handle case where clarityToNative returns {type: 'uint', value: '3'}
+        if (typeof countNative.value === "string" || typeof countNative.value === "number") {
+          totalCount = Number(countNative.value);
+        } else if (typeof countNative.value === "number") {
+          totalCount = countNative.value;
+        }
+      }
+      
+      console.log('🔍 DEBUG - Final total count:', totalCount);
+
+      // If count is 0, return empty results immediately
+      if (totalCount === 0) {
+        console.log('🔍 DEBUG - No plans found, returning empty array');
+        return { plans: [], totalCount: 0 };
+      }
 
       const start = (page - 1) * pageSize + 1;
       const end = Math.min(start + pageSize - 1, totalCount);
+      
+      console.log(`🔍 DEBUG - Fetching plans from ID ${start} to ${end}`);
 
       const plans = [];
+      let consecutiveFailures = 0;
+      const maxConsecutiveFailures = 5; // Stop if we get 5 consecutive failures
+      
       for (let i = start; i <= end; i++) {
+        console.log(`🔍 DEBUG - Attempting to fetch plan ID ${i}`);
         const plan = await getPlanById(i);
         if (plan) {
+          console.log(`✅ Successfully fetched plan ID ${i}:`, plan);
           plans.push(plan);
+          consecutiveFailures = 0; // Reset failure counter
+        } else {
+          console.log(`❌ Failed to fetch plan ID ${i}`);
+          consecutiveFailures++;
+          
+          // If we get too many consecutive failures, stop fetching
+          if (consecutiveFailures >= maxConsecutiveFailures) {
+            console.log(`⚠️ Stopping after ${consecutiveFailures} consecutive failures`);
+            break;
+          }
         }
       }
+      
+      console.log(`🔍 DEBUG - Final plans array:`, plans);
+      console.log(`🔍 DEBUG - Found ${plans.length} actual plans out of ${totalCount} expected`);
 
       return { plans, totalCount };
     } catch (error) {
@@ -431,7 +597,7 @@ export const StacksContractProvider = ({ children }: { children: ReactNode }) =>
         functionName: "get-join-requests",
         functionArgs: [uintCV(planId)],
         network,
-        senderAddress: address!,
+        senderAddress: contractAddress,
       });
 
       const requests = cvToJSON(result).value;
@@ -473,7 +639,7 @@ export const StacksContractProvider = ({ children }: { children: ReactNode }) =>
         functionName: "get-participant-cycle-status",
         functionArgs: [uintCV(planId), principalCV(participant)],
         network,
-        senderAddress: address!,
+        senderAddress: contractAddress,
       });
 
       const status = cvToJSON(result).value;
@@ -494,20 +660,28 @@ export const StacksContractProvider = ({ children }: { children: ReactNode }) =>
     }
 
     try {
-      const result = await callReadOnlyFunction({
-        contractAddress,
-        contractName,
-        functionName: "get-trust-score",
-        functionArgs: [principalCV(sender)],
-        network,
-        senderAddress: address!,
-      });
+      return await rateLimitedCall('getTrustScore', async () => {
+        const result = await callReadOnlyFunction({
+          contractAddress,
+          contractName,
+          functionName: "get-trust-score",
+          functionArgs: [principalCV(sender)],
+          network,
+          senderAddress: contractAddress,
+        });
 
-      const score = Number(cvToJSON(result).value);
-      return score;
+        const native = clarityToNative(cvToJSON(result));
+        const score = native && typeof native === "object" && "ok" in native
+          ? native.ok
+            ? Number(native.value)
+            : 50 // Default trust score for new users
+          : 50; // Default trust score if result is invalid
+
+        return score;
+      });
     } catch (error) {
       console.error("Error fetching trust score:", error);
-      return 0;
+      return 50; // Default trust score for new users
     }
   };
 

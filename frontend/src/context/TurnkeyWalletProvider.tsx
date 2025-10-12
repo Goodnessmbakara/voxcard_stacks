@@ -12,6 +12,7 @@ import {
   type WalletAccount,
   useTurnkey,
 } from "@turnkey/react-wallet-kit";
+import { TurnkeySDK } from "@turnkey/sdk-browser";
 import {
   AnchorMode,
   AuthType,
@@ -213,15 +214,11 @@ async function fetchSbtcBalance(stacksAddress: string): Promise<string> {
   return "0.00000000";
 }
 
-type TurnkeySigner = {
-  signRawPayload: (input: any) => Promise<any>;
-  getWalletAccounts?: (input: any) => Promise<any>;
-};
 
 async function signStacksTransactionWithTurnkey(
   transaction: StacksTransaction,
   account: DerivedStacksAccount,
-  signer: TurnkeySigner,
+  httpClient: any,
 ): Promise<StacksTransaction> {
   if (!transaction.auth.spendingCondition) {
     throw new Error("Transaction spending condition missing");
@@ -229,8 +226,42 @@ async function signStacksTransactionWithTurnkey(
   if (!transaction.auth.authType) {
     throw new Error("Transaction auth type missing");
   }
-  if (!signer || typeof signer.signRawPayload !== "function") {
-    throw new Error("Turnkey signer unavailable");
+  if (!httpClient) {
+    throw new Error("Turnkey HTTP client unavailable");
+  }
+  if (!account.walletAccountId) {
+    throw new Error("Account walletAccountId missing");
+  }
+  if (!account.organizationId) {
+    throw new Error("Account organizationId missing");
+  }
+
+  console.log("🔍 SIGNING ATTEMPT - Account details:", {
+    walletAccountId: account.walletAccountId,
+    organizationId: account.organizationId,
+    stacksAddress: account.stacksAddress,
+    walletId: account.walletId,
+    walletName: account.walletName,
+    curve: account.curve,
+    path: account.path,
+    publicKey: account.publicKey?.substring(0, 20) + "...",
+  });
+
+  console.log("🔍 SIGNING ATTEMPT - Validation checks:", {
+    hasWalletAccountId: !!account.walletAccountId,
+    walletAccountIdLength: account.walletAccountId?.length,
+    walletAccountIdType: typeof account.walletAccountId,
+    hasOrganizationId: !!account.organizationId,
+    organizationIdLength: account.organizationId?.length,
+    hasHttpClient: !!httpClient,
+  });
+
+  // Validate that we have all required data
+  if (!account.walletAccountId || account.walletAccountId === '') {
+    throw new Error(`Account walletAccountId is invalid: ${account.walletAccountId}`);
+  }
+  if (!account.organizationId || account.organizationId === '') {
+    throw new Error(`Account organizationId is invalid: ${account.organizationId}`);
   }
 
   const spendingCondition = transaction.auth.spendingCondition;
@@ -242,30 +273,98 @@ async function signStacksTransactionWithTurnkey(
     spendingCondition.nonce,
   );
 
-  const response = await signer.signRawPayload({
-    type: "ACTIVITY_TYPE_SIGN_RAW_PAYLOAD_V2",
-    organizationId: account.organizationId,
-    timestampMs: Date.now().toString(),
-    parameters: {
-      signWith: account.walletAccountId ?? account.publicKey,
-      payload: preSignHash,
-      encoding: "PAYLOAD_ENCODING_HEXADECIMAL",
-      hashFunction: "HASH_FUNCTION_SHA256",
-    },
-  });
-
-  const signResult =
-    response?.activity?.result?.signRawPayloadResult ??
-    // @ts-expect-error legacy path
-    response?.signRawPayloadResult;
-
-  if (!signResult?.r || !signResult?.s || typeof signResult.v === "undefined") {
-    throw new Error("Turnkey signature response malformed");
+  console.log("Pre-sign hash:", preSignHash);
+  
+  // Validate the preSignHash
+  if (!preSignHash || preSignHash === '') {
+    throw new Error(`Pre-sign hash is invalid: ${preSignHash}`);
   }
 
-  const signatureHex = formatStacksSignature(signResult.v, signResult.r, signResult.s);
-  spendingCondition.signature = createMessageSignature(signatureHex);
-  return transaction;
+  try {
+    // Use public key as signWith (following Turnkey Stacks example)
+    console.log("🔍 SIGNING - Attempting to sign with public key:", account.publicKey?.substring(0, 20) + "...");
+    console.log("🔍 SIGNING - Account details:", {
+      walletAccountId: account.walletAccountId,
+      organizationId: account.organizationId,
+      walletId: account.walletId,
+      stacksAddress: account.stacksAddress,
+      publicKey: account.publicKey?.substring(0, 20) + "..."
+    });
+    
+    let response;
+    try {
+      // Try public key first (as per Turnkey Stacks example)
+      response = await httpClient.signRawPayload({
+        signWith: account.publicKey!, // Use public key as per Turnkey example
+        payload: preSignHash,
+        encoding: "PAYLOAD_ENCODING_HEXADECIMAL",
+        hashFunction: "HASH_FUNCTION_NO_OP", // Use NO_OP as per Turnkey example
+      });
+      console.log("✅ SIGNING - Success with public key");
+    } catch (publicKeyError: any) {
+      console.log("⚠️ SIGNING - Public key failed, trying Stacks address:", publicKeyError.message);
+      
+      try {
+        // If public key fails, try Stacks address
+        response = await httpClient.signRawPayload({
+          signWith: account.stacksAddress, // Fallback to Stacks address
+          payload: preSignHash,
+          encoding: "PAYLOAD_ENCODING_HEXADECIMAL",
+          hashFunction: "HASH_FUNCTION_NO_OP",
+        });
+        console.log("✅ SIGNING - Success with Stacks address");
+      } catch (stacksError: any) {
+        console.log("⚠️ SIGNING - Stacks address failed, trying walletAccountId:", stacksError.message);
+        
+        // If Stacks address fails, try walletAccountId
+        response = await httpClient.signRawPayload({
+          signWith: account.walletAccountId, // Final fallback
+          payload: preSignHash,
+          encoding: "PAYLOAD_ENCODING_HEXADECIMAL",
+          hashFunction: "HASH_FUNCTION_NO_OP",
+        });
+        console.log("✅ SIGNING - Success with walletAccountId");
+      }
+    }
+
+    console.log("Turnkey sign response:", response);
+
+    // Extract signature components from the response
+    const { r, s, v } = response;
+
+    if (!r || !s || typeof v === "undefined") {
+      throw new Error("Turnkey signature response malformed");
+    }
+
+    // Format signature as per Turnkey Stacks example: v + r + s
+    const nextSig = `${v}${r.padStart(64, "0")}${s.padStart(64, "0")}`;
+    spendingCondition.signature = createMessageSignature(nextSig);
+    return transaction;
+  } catch (error: any) {
+    console.error("Turnkey signing error:", error);
+    
+    // If walletAccountId fails, try alternative approaches
+    console.error("❌ PRIMARY SIGNING FAILED:", error);
+    console.log("🔍 ACCOUNT DETAILS THAT FAILED:", {
+      walletAccountId: account.walletAccountId,
+      stacksAddress: account.stacksAddress,
+      organizationId: account.organizationId,
+      walletId: account.walletId,
+      path: account.path
+    });
+    
+    // Check if it's a rate limiting issue
+    if (error?.message?.includes("Resource exhausted") || error?.message?.includes("429")) {
+      throw new Error("Rate limited by Turnkey API. Please wait a moment and try again.");
+    }
+    
+    // Check if it's an internal server error
+    if (error?.message?.includes("internal server error") || error?.message?.includes("500")) {
+      throw new Error("Turnkey API internal error. Please try again in a moment.");
+    }
+    
+    throw new Error(`Signing failed: ${error.message || error}`);
+  }
 }
 
 export const TurnkeyWalletProvider = ({ children }: { children: ReactNode }) => {
@@ -293,13 +392,6 @@ export const TurnkeyWalletProvider = ({ children }: { children: ReactNode }) => 
   const isConnected = isAuthenticated && !!currentAccount;
   const primaryAddress = currentAccount?.stacksAddress ?? null;
 
-  const resolveSigner = useCallback((): TurnkeySigner => {
-    const signerCandidate = (client ?? passkeyClient ?? walletClient ?? httpClient) as TurnkeySigner | undefined;
-    if (!signerCandidate || typeof signerCandidate.signRawPayload !== "function") {
-      throw new Error("Turnkey signer unavailable. Please sign in again.");
-    }
-    return signerCandidate;
-  }, [client, passkeyClient, walletClient, httpClient]);
 
   useEffect(() => {
     const cached = localStorage.getItem(TURNKEY_STORAGE_KEY);
@@ -322,10 +414,34 @@ export const TurnkeyWalletProvider = ({ children }: { children: ReactNode }) => 
 
   useEffect(() => {
     if (isAuthenticated) {
-      refreshWallets().catch((error) => {
-        console.error("Failed to refresh Turnkey wallets:", error);
-      });
+      console.log("🔄 REFRESH WALLETS - Starting wallet refresh...");
+      
+      // Use a more conservative approach to prevent rate limiting
+      const refreshWithDelay = async () => {
+        try {
+          // Add a small delay to prevent rapid successive calls
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          await refreshWallets();
+        } catch (error: any) {
+          console.error("❌ REFRESH WALLETS - Failed to refresh Turnkey wallets:", error);
+          
+          // Only retry once for rate limiting
+          if (error?.message?.includes("Resource exhausted") || error?.message?.includes("429")) {
+            console.log("⏳ RATE LIMITED - Will retry once in 5 seconds");
+            setTimeout(async () => {
+              try {
+                await refreshWallets();
+              } catch (retryError) {
+                console.error("❌ RETRY FAILED - Please wait before trying again");
+              }
+            }, 5000);
+          }
+        }
+      };
+      
+      refreshWithDelay();
     } else {
+      console.log("🚫 REFRESH WALLETS - Not authenticated, clearing accounts");
       setAccounts([]);
       setCurrentAccount(null);
       setBalance("--");
@@ -343,7 +459,11 @@ export const TurnkeyWalletProvider = ({ children }: { children: ReactNode }) => 
     let ignore = false;
 
     const hydrateAccounts = async () => {
+      console.log("🔍 HYDRATE ACCOUNTS - Starting account hydration...");
+      console.log("🔍 HYDRATE ACCOUNTS - Wallets found:", wallets?.length || 0);
+      
       if (!wallets || wallets.length === 0) {
+        console.log("❌ HYDRATE ACCOUNTS - No wallets found, clearing accounts");
         if (!ignore) {
           setAccounts([]);
           setCurrentAccount(null);
@@ -352,12 +472,30 @@ export const TurnkeyWalletProvider = ({ children }: { children: ReactNode }) => 
         return;
       }
 
+      console.log("✅ HYDRATE ACCOUNTS - Processing wallets:", wallets.map(w => ({
+        walletId: w.walletId,
+        walletName: w.walletName,
+        accountsCount: w.accounts?.length || 0
+      })));
+
       const hydrated = await Promise.all(
         wallets.map(async (wallet) => {
           const walletAccounts = (wallet.accounts as AnyWalletAccount[]) ?? [];
+          console.log(`🔍 HYDRATE ACCOUNTS - Wallet ${wallet.walletId} accounts:`, walletAccounts.length);
+          console.log(`🔍 HYDRATE ACCOUNTS - Raw accounts:`, walletAccounts.map(acc => ({
+            walletAccountId: acc.walletAccountId,
+            address: acc.address,
+            publicKey: acc.publicKey?.substring(0, 20) + "...",
+            source: acc.source,
+            curve: acc.curve
+          })));
+          
           let embeddedAccounts = walletAccounts.filter(isEmbeddedAccount);
           if (embeddedAccounts.length === 0) {
+            console.log(`⚠️ HYDRATE ACCOUNTS - No embedded accounts found, using all accounts`);
             embeddedAccounts = walletAccounts;
+          } else {
+            console.log(`✅ HYDRATE ACCOUNTS - Found ${embeddedAccounts.length} embedded accounts`);
           }
 
           const missingDetails = embeddedAccounts.some(
@@ -405,21 +543,31 @@ export const TurnkeyWalletProvider = ({ children }: { children: ReactNode }) => 
               const effectiveStacksAddress =
                 stacksAddress ?? deriveStacksAddress(effectivePublicKey);
 
-              const resolvedWalletAccountId =
-                account.walletAccountId ??
-                account.address ??
-                effectivePublicKey;
+              // Use the proper walletAccountId from Turnkey, not fallback to address/publicKey
+              const resolvedWalletAccountId = account.walletAccountId;
 
               if (!resolvedWalletAccountId) {
                 console.warn("[Turnkey] Skipping account missing walletAccountId", account);
                 return null;
               }
 
+              console.log("🔍 ACCOUNT RESOLUTION:", {
+                walletId: wallet.walletId,
+                originalWalletAccountId: account.walletAccountId,
+                address: account.address,
+                publicKey: effectivePublicKey?.substring(0, 20) + "...",
+                resolvedWalletAccountId: resolvedWalletAccountId,
+                organizationId: account.organizationId,
+                curve: account.curve,
+                path: account.path
+              });
+
               console.debug(
                 "[Turnkey] Hydrated embedded wallet account",
                 {
                   walletId: wallet.walletId,
                   walletAccountId: resolvedWalletAccountId,
+                  organizationId: account.organizationId,
                   stacksAddress: effectiveStacksAddress,
                   path: account.path,
                 },
@@ -443,12 +591,20 @@ export const TurnkeyWalletProvider = ({ children }: { children: ReactNode }) => 
       if (ignore) return;
 
       const flattened = hydrated.flat();
+      console.log("🔍 HYDRATE ACCOUNTS - Flattened accounts:", flattened.length);
+      console.log("🔍 HYDRATE ACCOUNTS - Final accounts:", flattened.map(acc => ({
+        walletAccountId: acc.walletAccountId,
+        stacksAddress: acc.stacksAddress,
+        organizationId: acc.organizationId,
+        walletId: acc.walletId
+      })));
+      
       setAccounts(flattened);
 
       if (flattened.length === 0) {
+        console.warn("❌ HYDRATE ACCOUNTS - No embedded wallet accounts found after hydration.");
         setCurrentAccount(null);
         setBalance("--");
-        console.warn("[Turnkey] No embedded wallet accounts found after hydration.");
         return;
       }
 
@@ -468,16 +624,26 @@ export const TurnkeyWalletProvider = ({ children }: { children: ReactNode }) => 
         flattened.find((account) => account.walletAccountId === preferredAccountId);
 
       const nextAccount = matched ?? flattened[0];
-      setCurrentAccount(nextAccount);
-      persistSelection(nextAccount.walletAccountId);
-      console.info(
-        "[Turnkey] Active embedded wallet ready",
-        {
+      console.log("🎯 SETTING CURRENT ACCOUNT:", {
+        selectedAccount: nextAccount ? {
           walletAccountId: nextAccount.walletAccountId,
           stacksAddress: nextAccount.stacksAddress,
-          path: nextAccount.path,
-        },
-      );
+          organizationId: nextAccount.organizationId,
+          walletId: nextAccount.walletId,
+          path: nextAccount.path
+        } : null,
+        wasMatched: !!matched,
+        preferredAccountId: preferredAccountId
+      });
+      
+      setCurrentAccount(nextAccount);
+      persistSelection(nextAccount.walletAccountId);
+      console.info("✅ ACTIVE WALLET READY:", {
+        walletAccountId: nextAccount.walletAccountId,
+        stacksAddress: nextAccount.stacksAddress,
+        organizationId: nextAccount.organizationId,
+        path: nextAccount.path,
+      });
     };
 
     hydrateAccounts();
@@ -514,7 +680,7 @@ export const TurnkeyWalletProvider = ({ children }: { children: ReactNode }) => 
 
       try {
         const name = walletName ?? `VoxCard Wallet ${Date.now()}`;
-        await turnkeyCreateWallet({
+        console.log("🔨 CREATING WALLET:", {
           walletName: name,
           accounts: [
             {
@@ -525,6 +691,20 @@ export const TurnkeyWalletProvider = ({ children }: { children: ReactNode }) => 
             },
           ],
         });
+
+        const createResult = await turnkeyCreateWallet({
+          walletName: name,
+          accounts: [
+            {
+              curve: "CURVE_SECP256K1",
+              pathFormat: "PATH_FORMAT_BIP32",
+              path: "m/44'/5757'/0'/0/0",
+              addressFormat: "ADDRESS_FORMAT_COMPRESSED",
+            },
+          ],
+        });
+
+        console.log("✅ WALLET CREATION RESULT:", createResult);
 
         await refreshWallets();
         console.info("[Turnkey] Embedded wallet created. Refreshing accounts…");
@@ -615,7 +795,9 @@ export const TurnkeyWalletProvider = ({ children }: { children: ReactNode }) => 
         throw new Error("Turnkey wallet not connected");
       }
 
-      const signer = resolveSigner();
+      if (!httpClient) {
+        throw new Error("Turnkey HTTP client not available");
+      }
 
       const feeValue =
         txOptions?.fee !== undefined && txOptions?.fee !== null
@@ -651,16 +833,29 @@ export const TurnkeyWalletProvider = ({ children }: { children: ReactNode }) => 
 
       const unsignedTx = await makeUnsignedContractCall(contractCallOptions as any);
 
-      const signedTx = await signStacksTransactionWithTurnkey(unsignedTx, currentAccount, signer);
+      const signedTx = await signStacksTransactionWithTurnkey(unsignedTx, currentAccount, httpClient);
+
+      console.log("📤 Broadcasting signed transaction:", {
+        txType: signedTx.payload.payloadType,
+        auth: signedTx.auth,
+        hasSignature: !!signedTx.auth.spendingCondition?.signature,
+        signatureData: signedTx.auth.spendingCondition?.signature?.data?.toString("hex")?.substring(0, 20) + "...",
+      });
 
       const broadcastResponse = await broadcastTransaction(signedTx, network);
+      
+      if (broadcastResponse.error) {
+        console.error("❌ Broadcast error:", broadcastResponse);
+        throw new Error(`Transaction broadcast failed: ${broadcastResponse.reason || broadcastResponse.error}`);
+      }
+      
       toast({
         title: "Transaction submitted",
         description: `Transaction ID: ${broadcastResponse.txid}`,
       });
       return broadcastResponse.txid;
     },
-    [resolveSigner, currentAccount],
+    [httpClient, currentAccount],
   );
 
   const sendSTX = useCallback(
@@ -669,7 +864,9 @@ export const TurnkeyWalletProvider = ({ children }: { children: ReactNode }) => 
         throw new Error("Turnkey wallet not connected");
       }
 
-      const signer = resolveSigner();
+      if (!httpClient) {
+        throw new Error("Turnkey HTTP client not available");
+      }
 
       const transferOptions: Record<string, any> = {
         recipient,
@@ -682,7 +879,7 @@ export const TurnkeyWalletProvider = ({ children }: { children: ReactNode }) => 
 
       const unsignedTx = await makeUnsignedSTXTokenTransfer(transferOptions as any);
 
-      const signedTx = await signStacksTransactionWithTurnkey(unsignedTx, currentAccount, signer);
+      const signedTx = await signStacksTransactionWithTurnkey(unsignedTx, currentAccount, httpClient);
 
       const broadcastResponse = await broadcastTransaction(signedTx, network);
       toast({
@@ -691,7 +888,7 @@ export const TurnkeyWalletProvider = ({ children }: { children: ReactNode }) => 
       });
       return broadcastResponse.txid;
     },
-    [resolveSigner, currentAccount],
+    [httpClient, currentAccount],
   );
 
   const getSBTCBalance = useCallback(async () => {
@@ -703,6 +900,57 @@ export const TurnkeyWalletProvider = ({ children }: { children: ReactNode }) => 
     } catch (error) {
       console.error("sBTC balance fetch failed:", error);
       return "0.00000000";
+    }
+  }, [currentAccount]);
+
+  // Debug function to verify wallet account exists in Turnkey
+  const verifyWalletAccount = useCallback(async (account: DerivedStacksAccount) => {
+    if (!httpClient || !account.walletAccountId) {
+      console.log("❌ VERIFY ACCOUNT - Missing httpClient or walletAccountId");
+      return false;
+    }
+
+    try {
+      console.log("🔍 VERIFY ACCOUNT - Checking if wallet account exists:", {
+        walletAccountId: account.walletAccountId,
+        organizationId: account.organizationId
+      });
+
+      // Use the correct parameters for getWalletAccount
+      // According to docs: organizationId, walletId, and either address OR path
+      const response = await httpClient.getWalletAccount({
+        organizationId: account.organizationId,
+        walletId: account.walletId,
+        path: account.path, // Use path instead of address
+      });
+
+      console.log("✅ VERIFY ACCOUNT - Wallet account exists:", response);
+      return true;
+    } catch (error: any) {
+      console.log("❌ VERIFY ACCOUNT - Wallet account verification failed:", {
+        error: error.message,
+        walletAccountId: account.walletAccountId,
+        organizationId: account.organizationId,
+        walletId: account.walletId,
+        path: account.path
+      });
+      return false;
+    }
+  }, [httpClient]);
+
+  // Skip auto-verification to prevent rate limiting
+  // The wallet account exists if we can see it in the logs
+  // We'll only verify when actually needed for signing
+  useEffect(() => {
+    if (currentAccount) {
+      console.log("✅ ACCOUNT LOADED - Skipping auto-verification to prevent rate limiting");
+      console.log("🔍 ACCOUNT DETAILS:", {
+        walletAccountId: currentAccount.walletAccountId,
+        stacksAddress: currentAccount.stacksAddress,
+        organizationId: currentAccount.organizationId,
+        walletId: currentAccount.walletId,
+        path: currentAccount.path
+      });
     }
   }, [currentAccount]);
 

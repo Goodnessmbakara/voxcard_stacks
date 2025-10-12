@@ -14,9 +14,13 @@
   "dependencies": {
     "@hirosystems/clarinet-sdk": "^3.6.0",
     "@stacks/network": "^7.2.0",
+    "@stacks/stacking": "^7.2.0",
     "@stacks/transactions": "^7.2.0",
     "@types/node": "^24.4.0",
+    "bip39": "^3.1.0",
     "chokidar-cli": "^3.0.0",
+    "hdkey": "^2.1.0",
+    "stacks-testing-helpers": "^1.0.1",
     "vitest": "^3.2.4",
     "vitest-environment-clarinet": "^2.3.0"
   },

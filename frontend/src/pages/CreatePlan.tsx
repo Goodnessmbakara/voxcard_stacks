@@ -38,6 +38,9 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useContract } from "../context/StacksContractProvider";
 import { CreatePlanInput } from "@/types/utils";
+import { TurnkeyDebug } from "@/components/TurnkeyDebug";
+import { WalletTest } from "@/components/WalletTest";
+import { TransactionSuccessModal } from "@/components/modals/TransactionSuccessModal";
 
 
 // Form schema with validation
@@ -56,6 +59,8 @@ const CreatePlan = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [transactionId, setTransactionId] = useState("");
   const { createPlan, address } = useContract();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -74,16 +79,19 @@ const CreatePlan = () => {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
-	console.log(values)
+    console.log(values);
     try {
-      await createPlan(values as CreatePlanInput);
+      const result = await createPlan(values as CreatePlanInput);
 
-      toast({
-        title: "Group created on chain!",
-        description: "Transaction submitted successfully.",
-      });
-
-      navigate("/dashboard");
+      if (result && result.txid) {
+        setTransactionId(result.txid);
+        setShowSuccessModal(true);
+        
+        toast({
+          title: "Group created on chain!",
+          description: "Transaction submitted successfully.",
+        });
+      }
     } catch (err) {
       console.error(err);
       toast({
@@ -96,12 +104,67 @@ const CreatePlan = () => {
     }
   };
 
+  const handleModalClose = () => {
+    setShowSuccessModal(false);
+    navigate("/dashboard");
+  };
+
+  const createTestPlan = async () => {
+    setIsSubmitting(true);
+    const testPlanData = {
+      name: "Test Savings Group",
+      description: "A test savings group to verify contract functionality and ensure the frontend can display groups properly.",
+      total_participants: 5,
+      contribution_amount: "1", // 1 STX
+      frequency: "Weekly" as const,
+      duration_months: 6,
+      trust_score_required: 50,
+      allow_partial: true,
+    };
+
+    try {
+      console.log("Creating test plan:", testPlanData);
+      const result = await createPlan(testPlanData);
+
+      if (result && result.txid) {
+        setTransactionId(result.txid);
+        setShowSuccessModal(true);
+        
+        toast({
+          title: "Test Group Created!",
+          description: "Test savings group created successfully. Check the groups page to see it.",
+        });
+      }
+    } catch (err) {
+      console.error("Error creating test plan:", err);
+      toast({
+        title: "Test Plan Creation Failed",
+        description: "Failed to create test group. Check console for details.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <>
+      <TransactionSuccessModal
+        open={showSuccessModal}
+        onClose={handleModalClose}
+        txid={transactionId}
+        title="Plan Created Successfully!"
+        description="Your savings plan has been created on the blockchain. You can now invite participants to join."
+      />
+      
       <div className="container py-8 max-w-3xl mx-auto">
         <h1 className="text-3xl font-heading font-bold mb-6 text-vox-secondary">
           Create New Savings Group
         </h1>
+
+        {/* Debug components - remove in production */}
+        <TurnkeyDebug />
+        <WalletTest />
 
         <Card>
           <CardHeader>
@@ -321,6 +384,15 @@ const CreatePlan = () => {
                       className="flex-1"
                     >
                       Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={createTestPlan}
+                      disabled={isSubmitting}
+                      className="flex-1"
+                    >
+                      {isSubmitting ? "Creating..." : "Create Test Plan"}
                     </Button>
                     <Button
                       type="submit"

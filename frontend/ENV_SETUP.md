@@ -9,10 +9,10 @@ VITE_STACKS_NETWORK=testnet
 
 # Contract Configuration
 # The Stacks address where your contract is deployed
-VITE_CONTRACT_ADDRESS=ST3DSAPR2WF7D7SMR6W0R436AA6YYTD8RFT9E9NPH
+VITE_CONTRACT_ADDRESS=ST240V2R09J62PD2KDMJ5Z5X85VAB4VNJ9NZ6XBS1
 
 # The name of your deployed contract
-VITE_CONTRACT_NAME=voxcard-savings
+VITE_CONTRACT_NAME=voxcard-savings-v3
 
 # Turnkey Embedded Wallet Configuration
 # Values provided by your Turnkey dashboard
@@ -34,10 +34,27 @@ VITE_AUTH_PROXY_CONFIG_ID=your-auth-proxy-config-id
 
 ## After Deployment
 
-After deploying your contract to Stacks:
-1. Update `VITE_CONTRACT_ADDRESS` with your deployed contract address
-2. Update `VITE_CONTRACT_NAME` if you used a different name
-3. Set `VITE_STACKS_NETWORK` to `mainnet` when ready for production
+✅ **Contract Successfully Deployed!**
+
+Your VoxCard Savings contract has been deployed to Stacks Testnet:
+- **Contract Address:** `ST240V2R09J62PD2KDMJ5Z5X85VAB4VNJ9NZ6XBS1.voxcard-savings-v3`
+- **Transaction ID:** `7a22a1c31a1cf143b19edfcca93d9a5364ea5336a6350cd3be724b0afba7f314`
+- **Transaction Status:** ✅ Success - Pending Confirmation
+- **Explorer:** https://explorer.hiro.so/txid/7a22a1c31a1cf143b19edfcca93d9a5364ea5336a6350cd3be724b0afba7f314?chain=testnet
+- **Contract Interface:** https://explorer.hiro.so/txid/ST240V2R09J62PD2KDMJ5Z5X85VAB4VNJ9NZ6XBS1.voxcard-savings-v3?chain=testnet
+- **Deployment Date:** October 12, 2025
+- **Version:** v3 - Fixed nonce increment timing to prevent empty plan creation
+
+### Important Notes
+- **sBTC Support:** Currently disabled as sBTC contracts are not available on testnet
+- **Asset Type:** STX-only for now
+- **Functions:** 28 functions exposed (all STX-related functionality working)
+
+The environment variables have been updated automatically. When ready for production:
+1. Deploy to mainnet
+2. Update `VITE_CONTRACT_ADDRESS` with your mainnet contract address
+3. Set `VITE_STACKS_NETWORK` to `mainnet`
+4. Re-enable sBTC support if needed
 
 ## Wallet Integration
 

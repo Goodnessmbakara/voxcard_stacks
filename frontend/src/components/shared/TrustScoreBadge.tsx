@@ -14,12 +14,15 @@ export const TrustScoreBadge = ({
   showLabel = true,
   className,
 }: TrustScoreBadgeProps) => {
+  // Validate and sanitize score
+  const safeScore = Number.isNaN(score) || score === null || score === undefined ? 50 : Math.max(0, Math.min(100, Number(score)));
+
   // Determine color based on score
   const getColor = () => {
-    if (score >= 90) return 'bg-[#10B981]';
-    if (score >= 75) return 'bg-emerald-500';
-    if (score >= 60) return 'bg-yellow-500';
-    if (score >= 40) return 'bg-orange-500';
+    if (safeScore >= 90) return 'bg-[#10B981]';
+    if (safeScore >= 75) return 'bg-emerald-500';
+    if (safeScore >= 60) return 'bg-yellow-500';
+    if (safeScore >= 40) return 'bg-orange-500';
     return 'bg-red-500';
   };
 
@@ -39,7 +42,7 @@ export const TrustScoreBadge = ({
           getColor()
         )}
       >
-        {Math.floor(score / 10)}
+        {Math.floor(safeScore / 10)}
       </div>
       {showLabel && (
         <div className="ml-2">
@@ -50,7 +53,7 @@ export const TrustScoreBadge = ({
               size === 'sm' ? 'text-sm' : size === 'lg' ? 'text-lg' : 'text-base'
             )}
           >
-            {score}/100
+            {safeScore}/100
           </p>
         </div>
       )}

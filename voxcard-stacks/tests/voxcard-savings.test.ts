@@ -32,7 +32,8 @@ describe("VoxCard Savings Contract - Comprehensive Tests", () => {
           Cl.stringAscii("Monthly"),
           Cl.uint(12), // 12 months
           Cl.uint(50), // trust score required
-          Cl.bool(false) // no partial payments
+          Cl.bool(false), // no partial payments
+          Cl.stringAscii("STX") // asset type
         ],
         deployer
       );
@@ -53,7 +54,8 @@ describe("VoxCard Savings Contract - Comprehensive Tests", () => {
           Cl.stringAscii("Weekly"),
           Cl.uint(6),
           Cl.uint(30),
-          Cl.bool(true)
+          Cl.bool(true),
+          Cl.stringAscii("STX") // asset type
         ],
         deployer
       );
@@ -72,7 +74,8 @@ describe("VoxCard Savings Contract - Comprehensive Tests", () => {
           Cl.stringAscii("Monthly"),
           Cl.uint(12),
           Cl.uint(40),
-          Cl.bool(false)
+          Cl.bool(false),
+          Cl.stringAscii("STX") // asset type
         ],
         wallet1
       );
@@ -92,7 +95,8 @@ describe("VoxCard Savings Contract - Comprehensive Tests", () => {
           Cl.stringAscii("Monthly"),
           Cl.uint(12),
           Cl.uint(50),
-          Cl.bool(false)
+          Cl.bool(false),
+          Cl.stringAscii("STX") // asset type
         ],
         deployer
       );
@@ -112,7 +116,8 @@ describe("VoxCard Savings Contract - Comprehensive Tests", () => {
           Cl.stringAscii("Monthly"),
           Cl.uint(12),
           Cl.uint(50),
-          Cl.bool(false)
+          Cl.bool(false),
+          Cl.stringAscii("STX") // asset type
         ],
         deployer
       );
@@ -132,7 +137,8 @@ describe("VoxCard Savings Contract - Comprehensive Tests", () => {
           Cl.stringAscii("Monthly"),
           Cl.uint(12),
           Cl.uint(50),
-          Cl.bool(false)
+          Cl.bool(false),
+          Cl.stringAscii("STX") // asset type
         ],
         deployer
       );
@@ -152,7 +158,8 @@ describe("VoxCard Savings Contract - Comprehensive Tests", () => {
           Cl.stringAscii("Monthly"),
           Cl.uint(61), // More than 60 months!
           Cl.uint(50),
-          Cl.bool(false)
+          Cl.bool(false),
+          Cl.stringAscii("STX") // asset type
         ],
         deployer
       );
@@ -173,7 +180,8 @@ describe("VoxCard Savings Contract - Comprehensive Tests", () => {
           Cl.stringAscii("Monthly"),
           Cl.uint(12),
           Cl.uint(50),
-          Cl.bool(false)
+          Cl.bool(false),
+          Cl.stringAscii("STX") // asset type
         ],
         deployer
       );
@@ -209,7 +217,8 @@ describe("VoxCard Savings Contract - Comprehensive Tests", () => {
           Cl.stringAscii("Monthly"),
           Cl.uint(12),
           Cl.uint(50),
-          Cl.bool(false)
+          Cl.bool(false),
+          Cl.stringAscii("STX") // asset type
         ],
         deployer
       );
@@ -282,7 +291,8 @@ describe("VoxCard Savings Contract - Comprehensive Tests", () => {
           Cl.stringAscii("Monthly"),
           Cl.uint(12),
           Cl.uint(0), // No trust score requirement
-          Cl.bool(false)
+          Cl.bool(false),
+          Cl.stringAscii("STX") // asset type
         ],
         deployer
       );
@@ -450,7 +460,8 @@ describe("VoxCard Savings Contract - Comprehensive Tests", () => {
           Cl.stringAscii("Monthly"),
           Cl.uint(12),
           Cl.uint(0),
-          Cl.bool(false) // No partial payments
+          Cl.bool(false), // No partial payments
+          Cl.stringAscii("STX") // asset type
         ],
         deployer
       );
@@ -523,7 +534,8 @@ describe("VoxCard Savings Contract - Comprehensive Tests", () => {
           Cl.stringAscii("Monthly"),
           Cl.uint(12),
           Cl.uint(0),
-          Cl.bool(true) // Allow partial
+          Cl.bool(true), // Allow partial
+          Cl.stringAscii("STX") // asset type
         ],
         deployer
       );
@@ -573,7 +585,8 @@ describe("VoxCard Savings Contract - Comprehensive Tests", () => {
           Cl.stringAscii("Monthly"),
           Cl.uint(12),
           Cl.uint(0),
-          Cl.bool(true)
+          Cl.bool(true),
+          Cl.stringAscii("STX") // asset type
         ],
         deployer
       );
@@ -685,7 +698,8 @@ describe("VoxCard Savings Contract - Comprehensive Tests", () => {
           Cl.stringAscii("Monthly"),
           Cl.uint(12),
           Cl.uint(0),
-          Cl.bool(false)
+          Cl.bool(false),
+          Cl.stringAscii("STX") // asset type
         ],
         deployer
       );
@@ -747,7 +761,8 @@ describe("VoxCard Savings Contract - Comprehensive Tests", () => {
           Cl.stringAscii("Monthly"),
           Cl.uint(12),
           Cl.uint(80), // Require 80 trust score
-          Cl.bool(false)
+          Cl.bool(false),
+          Cl.stringAscii("STX") // asset type
         ],
         deployer
       );
@@ -789,7 +804,8 @@ describe("VoxCard Savings Contract - Comprehensive Tests", () => {
           Cl.stringAscii("Monthly"),
           Cl.uint(12),
           Cl.uint(0),
-          Cl.bool(false)
+          Cl.bool(false),
+          Cl.stringAscii("STX") // asset type
         ],
         wallet1 // Not deployer
       );
@@ -900,7 +916,8 @@ describe("VoxCard Savings Contract - Comprehensive Tests", () => {
           Cl.stringAscii("Monthly"),
           Cl.uint(12),
           Cl.uint(0),
-          Cl.bool(false)
+          Cl.bool(false),
+          Cl.stringAscii("STX") // asset type
         ],
         deployer
       );
@@ -936,7 +953,8 @@ describe("VoxCard Savings Contract - Comprehensive Tests", () => {
           Cl.stringAscii("Monthly"),
           Cl.uint(12),
           Cl.uint(0),
-          Cl.bool(false)
+          Cl.bool(false),
+          Cl.stringAscii("STX") // asset type
         ],
         deployer
       );

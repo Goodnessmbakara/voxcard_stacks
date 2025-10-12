@@ -18,6 +18,7 @@ import { Coins } from "lucide-react";
 import { useTurnkeyWallet } from "@/context/TurnkeyWalletProvider";
 import { useContract } from "@/context/StacksContractProvider";
 import type { ParticipantCycleStatus } from "@/types/utils";
+import { TransactionSuccessModal } from "@/components/modals/TransactionSuccessModal";
 
 interface ContributeModalProps {
   plan: Plan;
@@ -35,6 +36,8 @@ const ContributeModal = ({ plan, cycleStatus, open, onClose, onSuccess }: Contri
   const defaultAmount = String(cycleStatus?.remaining_this_cycle);
   const [amountMicroSTX, setAmountMicroSTX] = useState(defaultAmount);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [transactionId, setTransactionId] = useState("");
 
   useEffect(() => {
     if (open) setAmountMicroSTX(defaultAmount);
@@ -71,12 +74,18 @@ const ContributeModal = ({ plan, cycleStatus, open, onClose, onSuccess }: Contri
     setIsSubmitting(true);
     try {
       const res = await contribute(Number(plan.id), amountMicroSTX);
-      toast({
-        title: "Contribution submitted",
-        description: `Tx: ${res?.txid || res || "pending"}`,
-      });
-	  onSuccess();
-      onClose();
+      
+      if (res && res.txid) {
+        setTransactionId(res.txid);
+        onClose(); // Close the contribute modal first
+        setShowSuccessModal(true); // Then show success modal
+        onSuccess(); // Trigger parent refresh
+        
+        toast({
+          title: "Contribution submitted",
+          description: "Your contribution has been broadcasted to the blockchain.",
+        });
+      }
     } catch (err: any) {
       console.error(err);
       toast({
@@ -87,6 +96,10 @@ const ContributeModal = ({ plan, cycleStatus, open, onClose, onSuccess }: Contri
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSuccessModalClose = () => {
+    setShowSuccessModal(false);
   };
 
 	const handleChange = (e) => {
@@ -108,7 +121,16 @@ const ContributeModal = ({ plan, cycleStatus, open, onClose, onSuccess }: Contri
 
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <>
+      <TransactionSuccessModal
+        open={showSuccessModal}
+        onClose={handleSuccessModalClose}
+        txid={transactionId}
+        title="Contribution Successful!"
+        description={`Your contribution of ${amountMicroSTX} microSTX to "${plan.name}" has been submitted to the blockchain.`}
+      />
+      
+      <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Make Contribution</DialogTitle>
@@ -183,6 +205,7 @@ const ContributeModal = ({ plan, cycleStatus, open, onClose, onSuccess }: Contri
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   );
 };
 

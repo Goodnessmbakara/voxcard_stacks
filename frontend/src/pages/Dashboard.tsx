@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { mockPayouts, defaultUser } from '@/lib/mock-data';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -179,6 +179,8 @@ const Dashboard = () => {
 
   const [activeTab, setActiveTab] = useState('overview');
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [isModalLoading, setIsModalLoading] = useState(false);
+  const modalTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [trustScore, setTrustScore] = useState(50);
 
   const handleCreateWallet = useCallback(async () => {
@@ -216,6 +218,15 @@ const Dashboard = () => {
     fetchPlans();
   }, [account, getPlansByCreator, getTrustScore]);
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (modalTimeoutRef.current) {
+        clearTimeout(modalTimeoutRef.current);
+      }
+    };
+  }, []);
+
 
   // Upcoming payout (mock)
   const upcomingPayout = mockPayouts.find(
@@ -226,7 +237,19 @@ const Dashboard = () => {
     <>
       <ManageWalletModal
         open={showWalletModal}
-        onClose={() => setShowWalletModal(false)}
+        onClose={() => {
+          try {
+            // Clear the timeout if modal is closed normally
+            if (modalTimeoutRef.current) {
+              clearTimeout(modalTimeoutRef.current);
+              modalTimeoutRef.current = null;
+            }
+            setIsModalLoading(false);
+            setShowWalletModal(false);
+          } catch (error) {
+            console.error('Error closing wallet modal:', error);
+          }
+        }}
         address={userAddress}
         hasAccount={hasAccount}
         onCreateWallet={handleCreateWallet}
@@ -341,10 +364,26 @@ const Dashboard = () => {
                       <div className="pt-2">
                         <Button
                           className="w-full font-sans border-vox-primary text-vox-primary hover:bg-vox-primary/10"
-                          onClick={() => setShowWalletModal(true)}
+                          onClick={() => {
+                            try {
+                              setIsModalLoading(true);
+                              setShowWalletModal(true);
+                              
+                              // Set a timeout to prevent modal from staying open indefinitely
+                              modalTimeoutRef.current = setTimeout(() => {
+                                console.warn('Modal timeout - forcing close');
+                                setIsModalLoading(false);
+                                setShowWalletModal(false);
+                              }, 10000); // 10 second timeout
+                            } catch (error) {
+                              console.error('Error opening wallet modal:', error);
+                              setIsModalLoading(false);
+                            }
+                          }}
+                          disabled={isModalLoading}
                         >
                           <Wallet size={16} className="mr-2" />
-                          Manage Account
+                          {isModalLoading ? 'Opening...' : 'Manage Account'}
                         </Button>
                       </div>
                     </CardContent>
